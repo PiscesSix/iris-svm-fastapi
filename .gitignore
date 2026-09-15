@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.DS_Store
+
+# LƯU Ý: KHÔNG bỏ qua model/svm_model.pkl — image Docker và Render đều cần file này.

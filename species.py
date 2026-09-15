@@ -1,0 +1,55 @@
+"""Thông tin hiển thị của 3 loài hoa Iris (dùng chung cho API và giao diện web)."""
+
+SPECIES = [
+    {
+        "class_id": 0,
+        "species_key": "setosa",
+        "display_name": "Iris setosa",
+        "vietnamese_name": "Diên vĩ setosa",
+        "description": (
+            "Cánh hoa nhỏ, ngắn và hẹp (dài 1.0–1.9 cm). Đây là loài duy nhất tách biệt "
+            "tuyến tính hoàn toàn khỏi hai loài còn lại, nên mô hình gần như không bao giờ nhầm."
+        ),
+        "image_url": "/static/images/setosa.jpg",
+        "alt_text": "Hình minh hoạ hoa Iris setosa",
+        "source": "Wikimedia Commons — Денис Анисимов",
+        "license": "Public domain",
+    },
+    {
+        "class_id": 1,
+        "species_key": "versicolor",
+        "display_name": "Iris versicolor",
+        "vietnamese_name": "Diên vĩ versicolor",
+        "description": (
+            "Kích thước trung bình, cánh hoa dài 3.0–5.1 cm. Có vùng giao thoa nhỏ với "
+            "Iris virginica — phần lớn lỗi phân loại của mô hình nằm ở ranh giới này."
+        ),
+        "image_url": "/static/images/versicolor.jpg",
+        "alt_text": "Hình minh hoạ hoa Iris versicolor",
+        "source": "Wikimedia Commons — D. Gordon E. Robertson",
+        "license": "CC BY-SA 3.0",
+    },
+    {
+        "class_id": 2,
+        "species_key": "virginica",
+        "display_name": "Iris virginica",
+        "vietnamese_name": "Diên vĩ virginica",
+        "description": (
+            "Loài lớn nhất, cánh hoa dài 4.5–6.9 cm và đài hoa rộng. Thường bị nhầm với "
+            "Iris versicolor khi kích thước cánh hoa nằm ở vùng chuyển tiếp."
+        ),
+        "image_url": "/static/images/virginica.jpg",
+        "alt_text": "Hình minh hoạ hoa Iris virginica",
+        "source": "Wikimedia Commons — Frank Mayfield",
+        "license": "CC BY-SA 2.0",
+    },
+]
+
+BY_ID = {item["class_id"]: item for item in SPECIES}
+
+CREDITS_FILE = "static/images/IMAGE_CREDITS.md"
+
+
+def get(class_id: int) -> dict:
+    """Trả về thông tin hiển thị của một lớp (đã kèm nguồn và giấy phép ảnh)."""
+    return dict(BY_ID[class_id])

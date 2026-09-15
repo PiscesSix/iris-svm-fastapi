@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phân loại hoa Iris bằng SVM</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :root {
+    --indigo: #4f46e5; --ink: #1f2937; --muted: #6b7280; --line: #e5e7eb;
+    --setosa: #4f46e5; --versicolor: #0ea5e9; --virginica: #f97316;
+  }
+  body {
+    margin: 0; min-height: 100vh; padding: 24px 16px;
+    display: flex; align-items: flex-start; justify-content: center;
+    font-family: "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+    color: var(--ink); background: linear-gradient(135deg, #eef2ff, #fdf2f8);
+  }
+  .card {
+    width: min(100%, 680px); background: #fff; border-radius: 20px;
+    padding: 28px; box-shadow: 0 18px 45px rgba(0,0,0,.09);
+  }
+  h1 { margin: 0 0 4px; font-size: 1.5rem; color: var(--indigo); text-align: center; }
+  .sub { margin: 0 0 22px; text-align: center; color: var(--muted); font-size: .92rem; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  label { display: block; font-weight: 600; font-size: .9rem; }
+  input {
+    width: 100%; margin-top: 6px; padding: 11px 12px; font-size: 1rem;
+    border: 1px solid #d1d5db; border-radius: 10px;
+  }
+  input:focus { outline: 2px solid var(--indigo); outline-offset: 1px; border-color: transparent; }
+  .row { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+  button {
+    flex: 1 1 200px; padding: 13px; font-size: 1rem; font-weight: 700;
+    border: 0; border-radius: 10px; background: var(--indigo); color: #fff; cursor: pointer;
+  }
+  button.ghost { background: #eef2ff; color: var(--indigo); flex: 0 1 auto; padding: 13px 16px; }
+  button:disabled { background: #9ca3af; cursor: progress; }
+  .samples { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .samples span { font-size: .85rem; color: var(--muted); }
+  .chip {
+    border: 1px solid var(--line); background: #fff; border-radius: 999px;
+    padding: 5px 12px; font-size: .82rem; cursor: pointer; color: var(--ink);
+  }
+  .chip:hover { border-color: var(--indigo); color: var(--indigo); }
+  .result { margin-top: 22px; padding: 18px; border-radius: 16px; background: #f0fdf4; border: 1px solid #bbf7d0; }
+  .result.error { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+  .result h2 { margin: 0 0 4px; font-size: 1.25rem; }
+  .result .vn { color: var(--muted); font-size: .9rem; margin: 0 0 10px; }
+  .result p.desc { margin: 0 0 14px; line-height: 1.55; font-size: .94rem; }
+  .result img { width: 100%; height: 260px; object-fit: cover; border-radius: 12px; }
+  .credit { margin-top: 6px; font-size: .74rem; color: var(--muted); }
+  .bars { margin-top: 14px; display: grid; gap: 8px; }
+  .bar-row { display: grid; grid-template-columns: 96px 1fr 56px; gap: 8px; align-items: center; font-size: .85rem; }
+  .track { display: block; height: 10px; background: var(--line); border-radius: 999px; overflow: hidden; }
+  .fill { display: block; height: 100%; min-width: 2px; border-radius: 999px; transition: width .35s ease; }
+  footer { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line);
+           font-size: .8rem; color: var(--muted); display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  footer a { color: var(--indigo); }
+  @media (max-width: 520px) { .grid { grid-template-columns: 1fr; } .card { padding: 20px; } }
+</style>
+</head>
+<body>
+<main class="card">
+  <h1>Phân loại hoa Iris bằng SVM</h1>
+  <p class="sub">Nhập bốn kích thước của bông hoa (đơn vị cm), mô hình sẽ dự đoán loài và hiển thị ảnh minh hoạ.</p>
+
+  <form id="form">
+    <div class="grid">
+      <label>Dài đài hoa <input id="sepal_length" type="number" step="0.1" min="0.1" max="30" value="5.1" required></label>
+      <label>Rộng đài hoa <input id="sepal_width" type="number" step="0.1" min="0.1" max="30" value="3.5" required></label>
+      <label>Dài cánh hoa <input id="petal_length" type="number" step="0.1" min="0.1" max="30" value="1.4" required></label>
+      <label>Rộng cánh hoa <input id="petal_width" type="number" step="0.1" min="0.1" max="30" value="0.2" required></label>
+    </div>
+    <div class="row">
+      <button id="btn" type="submit">Dự đoán loài hoa</button>
+      <button class="ghost" type="button" id="reset">Đặt lại</button>
+    </div>
+  </form>
+
+  <div class="samples">
+    <span>Mẫu thử nhanh:</span>
+    <button class="chip" type="button" data-v="5.1,3.5,1.4,0.2">setosa</button>
+    <button class="chip" type="button" data-v="6.0,2.7,4.2,1.3">versicolor</button>
+    <button class="chip" type="button" data-v="6.5,3.0,5.5,2.0">virginica</button>
+  </div>
+
+  <section id="result" aria-live="polite"></section>
+
+  <footer>
+    <span>Mô hình: SVM (scikit-learn) · API: FastAPI</span>
+    <span><a href="/docs">Tài liệu API</a> · <a href="/metrics">Số liệu mô hình</a></span>
+  </footer>
+</main>
+
+<script>
+const FIELDS = ["sepal_length", "sepal_width", "petal_length", "petal_width"];
+const COLORS = { setosa: "#4f46e5", versicolor: "#0ea5e9", virginica: "#f97316" };
+const form = document.getElementById("form");
+const btn = document.getElementById("btn");
+const box = document.getElementById("result");
+
+// Cho phép mở sẵn một mẫu qua URL, ví dụ:  /?sl=6.5&sw=3.0&pl=5.5&pw=2.0&auto=1
+// Tiện để gửi link demo và để chụp màn hình có sẵn kết quả.
+(function applyQueryParams() {
+  const q = new URLSearchParams(location.search);
+  const alias = { sl: "sepal_length", sw: "sepal_width", pl: "petal_length", pw: "petal_width" };
+  let filled = false;
+  for (const [short, field] of Object.entries(alias)) {
+    const value = q.get(short) ?? q.get(field);
+    if (value !== null && value !== "" && !Number.isNaN(parseFloat(value))) {
+      document.getElementById(field).value = value;
+      filled = true;
+    }
+  }
+  if (filled && q.get("auto") === "1") {
+    window.addEventListener("load", () => form.requestSubmit());
+  }
+})();
+
+document.querySelectorAll(".chip").forEach(chip => {
+  chip.addEventListener("click", () => {
+    const vals = chip.dataset.v.split(",");
+    FIELDS.forEach((f, i) => document.getElementById(f).value = vals[i]);
+    form.requestSubmit();
+  });
+});
+
+document.getElementById("reset").addEventListener("click", () => {
+  const defaults = ["5.1", "3.5", "1.4", "0.2"];
+  FIELDS.forEach((f, i) => document.getElementById(f).value = defaults[i]);
+  box.innerHTML = "";
+});
+
+function showError(message) {
+  box.className = "result error";
+  box.innerHTML = `<strong>Không dự đoán được.</strong><p class="desc">${message}</p>`;
+}
+
+function showResult(data) {
+  const rows = Object.entries(data.probabilities)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, p]) => `
+      <div class="bar-row">
+        <span>${name}</span>
+        <span class="track"><span class="fill" style="width:${(p * 100).toFixed(1)}%;background:${COLORS[name] || "#4f46e5"}"></span></span>
+        <span>${(p * 100).toFixed(1)}%</span>
+      </div>`).join("");
+
+  box.className = "result";
+  box.innerHTML = `
+    <h2>${data.display_name}</h2>
+    <p class="vn">${data.vietnamese_name} · lớp ${data.class_id} · độ tin cậy ${(data.confidence * 100).toFixed(1)}%</p>
+    <p class="desc">${data.description}</p>
+    <img src="${data.image_url}" alt="${data.alt_text}" loading="lazy">
+    <p class="credit">Ảnh: ${data.source} — ${data.license}</p>
+    <div class="bars">${rows}</div>`;
+}
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const payload = {};
+  for (const f of FIELDS) payload[f] = parseFloat(document.getElementById(f).value);
+
+  btn.disabled = true;
+  btn.textContent = "Đang dự đoán...";
+  try {
+    const res = await fetch("/predict", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const detail = Array.isArray(data.detail)
+        ? data.detail.map(d => `${d.loc?.slice(-1)[0] ?? ""}: ${d.msg}`).join("<br>")
+        : (data.detail || `Mã lỗi HTTP ${res.status}`);
+      showError(detail);
+    } else {
+      showResult(data);
+    }
+  } catch (err) {
+    showError("Không kết nối được tới máy chủ. " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Dự đoán loài hoa";
+  }
+});
+</script>
+</body>
+</html>

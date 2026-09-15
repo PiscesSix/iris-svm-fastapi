@@ -1,0 +1,5 @@
+# Giữ LF cho các tệp chạy trên Linux (Docker, shell, nginx) — CRLF sẽ làm hỏng chúng.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.pkl binary
