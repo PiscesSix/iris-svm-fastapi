@@ -1,4 +1,4 @@
-# Phụ thuộc lúc chạy API (dùng cho image Docker trên VPS).
+# Phụ thuộc lúc chạy API (Render cài đúng tệp này khi build).
 # Phiên bản scikit-learn PHẢI trùng với lúc huấn luyện, nếu không file .pkl sẽ cảnh báo hoặc lỗi.
 fastapi==0.141.1
 uvicorn[standard]==0.53.0

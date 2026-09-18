@@ -4,4 +4,4 @@ __pycache__/
 .pytest_cache/
 .DS_Store
 
-# LƯU Ý: KHÔNG bỏ qua model/svm_model.pkl — image Docker và Render đều cần file này.
+# LƯU Ý: KHÔNG bỏ qua svm_model.pkl — Render cần tệp này lúc khởi động.

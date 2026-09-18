@@ -1,4 +1,4 @@
-"""Kiểm thử API bằng pytest + TestClient (không cần chạy uvicorn)."""
+"""API tests with pytest + TestClient — no running uvicorn needed."""
 
 import sys
 from pathlib import Path
@@ -13,14 +13,14 @@ from app import app  # noqa: E402
 
 @pytest.fixture(scope="module")
 def client():
-    with TestClient(app) as c:  # `with` để lifespan chạy và nạp mô hình
+    with TestClient(app) as c:  # `with` runs the lifespan handler, which loads the model
         yield c
 
 
-def test_home_tra_ve_giao_dien(client):
+def test_home_serves_web_page(client):
     res = client.get("/")
     assert res.status_code == 200
-    assert "Phân loại hoa Iris" in res.text
+    assert "Iris SVM Classification" in res.text
 
 
 def test_health(client):
@@ -31,7 +31,7 @@ def test_health(client):
     assert body["model_loaded"] is True
 
 
-def test_species_tra_ve_du_ba_loai(client):
+def test_species_returns_all_three(client):
     body = client.get("/species").json()
     assert body["count"] == 3
     assert [s["species_key"] for s in body["species"]] == ["setosa", "versicolor", "virginica"]
@@ -40,7 +40,7 @@ def test_species_tra_ve_du_ba_loai(client):
         assert item["license"]
 
 
-def test_metrics_co_so_lieu(client):
+def test_metrics_exposes_figures(client):
     body = client.get("/metrics").json()
     assert 0 < body["performance"]["accuracy_test"] <= 1
     assert len(body["performance"]["confusion_matrix"]) == 3
@@ -54,7 +54,7 @@ def test_metrics_co_so_lieu(client):
         ({"sepal_length": 6.5, "sepal_width": 3.0, "petal_length": 5.5, "petal_width": 2.0}, "virginica"),
     ],
 )
-def test_predict_dung_ba_loai(client, payload, expected):
+def test_predict_matches_each_species(client, payload, expected):
     res = client.post("/predict", json=payload)
     assert res.status_code == 200
     body = res.json()
@@ -65,12 +65,12 @@ def test_predict_dung_ba_loai(client, payload, expected):
     assert body["probabilities"][expected] == max(body["probabilities"].values())
 
 
-def test_predict_thieu_truong_tra_422(client):
+def test_predict_missing_field_returns_422(client):
     res = client.post("/predict", json={"sepal_length": 5.1, "sepal_width": 3.5})
     assert res.status_code == 422
 
 
-def test_predict_gia_tri_am_tra_422(client):
+def test_predict_negative_value_returns_422(client):
     res = client.post(
         "/predict",
         json={"sepal_length": -1, "sepal_width": 3.5, "petal_length": 1.4, "petal_width": 0.2},
@@ -78,7 +78,7 @@ def test_predict_gia_tri_am_tra_422(client):
     assert res.status_code == 422
 
 
-def test_predict_sai_kieu_du_lieu_tra_422(client):
+def test_predict_wrong_type_returns_422(client):
     res = client.post(
         "/predict",
         json={"sepal_length": "năm phẩy một", "sepal_width": 3.5, "petal_length": 1.4, "petal_width": 0.2},

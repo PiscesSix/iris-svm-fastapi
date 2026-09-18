@@ -1,9 +1,9 @@
-# da1 — API phân loại hoa Iris bằng SVM
+# iris-fastapi — API phân loại hoa Iris bằng SVM
 
 Mô hình SVM phân loại ba loài hoa Iris (*setosa*, *versicolor*, *virginica*), đóng gói thành
-REST API bằng FastAPI, chạy trong Docker sau nginx có HTTPS.
+REST API bằng FastAPI và triển khai trực tuyến trên **Render**.
 
-**Đang chạy tại:** https://iris.iamaris.vip — [Swagger UI](https://iris.iamaris.vip/docs)
+**URL công khai:** `https://<ten-service>.onrender.com` — cập nhật lại sau khi tạo service trên Render.
 
 ## Kết quả mô hình
 
@@ -15,7 +15,7 @@ REST API bằng FastAPI, chạy trong Docker sau nginx có HTTPS.
 | Macro F1 | 93.33% |
 | Vector hỗ trợ | 56 / 120 mẫu huấn luyện |
 
-Số liệu đầy đủ nằm trong `model/metrics.json` và endpoint `/metrics`.
+Số liệu đầy đủ nằm trong `metrics.json` và endpoint `/metrics`.
 
 ## Chạy lại từ đầu trên máy trắng
 
@@ -23,10 +23,10 @@ Số liệu đầy đủ nằm trong `model/metrics.json` và endpoint `/metrics
 # 1. Môi trường
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -r da1\requirements-dev.txt
+python -m pip install -r iris-fastapi\requirements-dev.txt
 
 # 2. Huấn luyện (tự tải dữ liệu Kaggle bằng kagglehub, không cần đăng nhập)
-cd da1
+cd iris-fastapi
 python train.py
 
 # 3. Kiểm thử
@@ -36,31 +36,39 @@ python -m pytest tests -v
 uvicorn app:app --reload        # http://127.0.0.1:8000/docs
 ```
 
-`train.py` sinh ra `model/svm_model.pkl`, `model/metrics.json` và 8 hình trong `figures/`.
+`train.py` sinh ra `svm_model.pkl`, `metrics.json` và 8 hình trong `figures/`.
 
-## Triển khai lên VPS
+## Triển khai lên Render
 
-```bash
-bash deploy.sh          # đồng bộ mã + build image + khởi động container + kiểm tra health
-bash deploy.sh --logs   # xem log
-bash deploy.sh --down   # gỡ sạch toàn bộ stack
-```
+1. Push thư mục này lên một repo GitHub (đã có `.git` sẵn, remote `origin`).
+2. Trên https://render.com → **New +** → **Web Service** → chọn repo.
+3. Render tự đọc `render.yaml`; nếu điền tay thì dùng:
+   - Runtime: **Python 3**
+   - Build Command: `pip install -r requirements.txt`
+   - Start Command: `uvicorn app:app --host 0.0.0.0 --port $PORT`
+   - Health Check Path: `/health`
+   - Instance Type: **Free**
+4. Bấm **Create Web Service**, chờ build ~2–4 phút, lấy URL `https://<ten-service>.onrender.com`.
 
-Cấu hình nginx nằm ở `nginx/da1-iris-svm.conf`; HTTPS cấp bằng `certbot --nginx -d iris.iamaris.vip`.
+**Lưu ý gói Free:** service **ngủ sau ~15 phút** không có request; request đầu tiên sau đó mất
+30–60 giây để đánh thức. Trước khi demo phải mở URL trước một lần.
+
+**Bắt buộc:** `svm_model.pkl` phải được commit lên GitHub (`.gitignore` không bỏ qua tệp này),
+nếu không Render sẽ báo `FileNotFoundError` lúc khởi động.
 
 ## Các endpoint
 
 | Method | Đường dẫn | Chức năng |
 |--------|-----------|-----------|
 | GET | `/` | Giao diện web |
-| GET | `/health` | Trạng thái dịch vụ (dùng cho HEALTHCHECK và nginx) |
+| GET | `/health` | Trạng thái dịch vụ (Render dùng làm health check) |
 | GET | `/species` | Thông tin 3 loài hoa kèm ảnh |
 | GET | `/metrics` | Số liệu đánh giá của mô hình đang chạy |
 | GET | `/docs` | Swagger UI |
 | POST | `/predict` | Dự đoán loài hoa từ 4 kích thước |
 
 ```bash
-curl -X POST "https://iris.iamaris.vip/predict" \
+curl -X POST "https://<ten-service>.onrender.com/predict" \
   -H "Content-Type: application/json" \
   -d '{"sepal_length":5.1,"sepal_width":3.5,"petal_length":1.4,"petal_width":0.2}'
 ```
@@ -68,18 +76,22 @@ curl -X POST "https://iris.iamaris.vip/predict" \
 ## Cấu trúc thư mục
 
 ```
-da1/
+iris-fastapi/
+├── app.py                # API FastAPI
 ├── train.py              # huấn luyện + đánh giá + sinh metrics.json
 ├── data_loader.py        # nạp dữ liệu Kaggle (kagglehub), fallback sklearn
 ├── figures.py            # sinh 8 hình cho báo cáo
-├── app.py                # API FastAPI
 ├── species.py            # thông tin 3 loài + nguồn ảnh
-├── model/                # svm_model.pkl + metrics.json  (phải commit)
+├── svm_model.pkl         # mô hình đã huấn luyện (PHẢI commit)
+├── metrics.json          # toàn bộ số liệu đánh giá
+├── requirements.txt      # phụ thuộc lúc chạy API (Render cài tệp này)
+├── requirements-dev.txt  # thêm phụ thuộc để huấn luyện / vẽ hình / kiểm thử
+├── render.yaml           # cấu hình dịch vụ Render
+├── Procfile              # lệnh khởi động
+├── data/Iris.csv         # dữ liệu Kaggle uciml/iris
 ├── static/               # giao diện web + ảnh 3 loài
 ├── tests/test_api.py     # 10 kiểm thử pytest
-├── figures/              # hình PNG cho tài liệu LaTeX
-├── Dockerfile, docker-compose.yml, deploy.sh, nginx/
-└── Procfile, render.yaml # cấu hình dự phòng cho Render
+└── figures/              # hình PNG cho tài liệu LaTeX
 ```
 
 ## Ghi chú kỹ thuật
@@ -92,6 +104,6 @@ da1/
 - **Phiên bản thư viện được khoá chính xác** trong `requirements.txt`; phiên bản scikit-learn
   khi chạy phải trùng lúc huấn luyện, nếu không tệp `.pkl` sẽ cảnh báo hoặc lỗi.
 - **Dữ liệu Kaggle và scikit-learn lệch nhau 2 dòng** (35 và 38) do lỗi sao chép trong kho UCI;
-  chi tiết trong `model/metrics.json → data.source_comparison`.
+  chi tiết trong `metrics.json → data.source_comparison`.
 
 Ảnh minh hoạ: xem `static/images/IMAGE_CREDITS.md` (Public domain / CC BY-SA, có ghi công tác giả).

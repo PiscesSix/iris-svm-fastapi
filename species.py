@@ -1,4 +1,7 @@
-"""Thông tin hiển thị của 3 loài hoa Iris (dùng chung cho API và giao diện web)."""
+"""Display information for the three Iris species, shared by the API and the web page.
+
+The user-facing text stays in Vietnamese because the report and the web page are.
+"""
 
 SPECIES = [
     {
@@ -51,5 +54,5 @@ CREDITS_FILE = "static/images/IMAGE_CREDITS.md"
 
 
 def get(class_id: int) -> dict:
-    """Trả về thông tin hiển thị của một lớp (đã kèm nguồn và giấy phép ảnh)."""
+    """Return the display information of one class, image credit and licence included."""
     return dict(BY_ID[class_id])

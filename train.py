@@ -1,11 +1,11 @@
-"""Huấn luyện, đánh giá và lưu mô hình SVM phân loại hoa Iris.
+"""Train, evaluate and save the SVM model that classifies Iris flowers.
 
-Chạy:  python train.py  [--source auto|kaggle|sklearn]  [--no-figures]
+Run:  python train.py  [--source auto|kaggle|sklearn]  [--no-figures]
 
-Đầu ra:
-    model/svm_model.pkl   pipeline StandardScaler + SVC đã huấn luyện
-    model/metrics.json    toàn bộ số liệu dùng cho tài liệu LaTeX và endpoint /metrics
-    figures/*.png         hình trực quan hoá cho báo cáo
+Outputs:
+    svm_model.pkl   trained StandardScaler + SVC pipeline
+    metrics.json    every figure quoted by the LaTeX report and the /metrics endpoint
+    figures/*.png   plots for the report
 """
 
 from __future__ import annotations
@@ -43,7 +43,6 @@ import data_loader as dl  # noqa: E402
 import figures as fig  # noqa: E402
 
 BASE_DIR = Path(__file__).resolve().parent
-MODEL_DIR = BASE_DIR / "model"
 FIGURE_DIR = BASE_DIR / "figures"
 
 RANDOM_STATE = 42
@@ -67,17 +66,17 @@ PARAM_GRID = [
 
 
 def build_pipeline(**svc_kwargs) -> Pipeline:
-    """Chuẩn hoá nằm trong pipeline để API không phải tự tiền xử lý."""
+    """Scaling lives inside the pipeline so the API never preprocesses by hand."""
     params = {"random_state": RANDOM_STATE, **svc_kwargs}
     return Pipeline([("scaler", StandardScaler()), ("svc", SVC(**params))])
 
 
 def build_calibrated_pipeline(svc_params: dict) -> Pipeline:
-    """Pipeline đem đi triển khai: bọc SVC bằng Platt scaling để có predict_proba.
+    """Pipeline that gets deployed: wrap SVC in Platt scaling to expose predict_proba.
 
-    `SVC(probability=True)` đã bị deprecated từ scikit-learn 1.9, tài liệu chính thức
-    khuyến nghị dùng CalibratedClassifierCV(..., ensemble=False) — bản chất vẫn là
-    Platt scaling mà SVC làm ngầm trước đây, nhưng tường minh và còn được hỗ trợ lâu dài.
+    `SVC(probability=True)` is deprecated since scikit-learn 1.9; the official docs
+    recommend CalibratedClassifierCV(..., ensemble=False) instead. It is the same
+    Platt scaling SVC used to run implicitly, only explicit and still supported.
     """
     base = SVC(random_state=RANDOM_STATE, **svc_params)
     calibrated = CalibratedClassifierCV(base, method="sigmoid", ensemble=False, cv=CV_FOLDS)
@@ -85,7 +84,7 @@ def build_calibrated_pipeline(svc_params: dict) -> Pipeline:
 
 
 def compare_kernels(X_train, y_train, X_test, y_test) -> list[dict]:
-    """Bảng so sánh các kernel với tham số mặc định (dùng cho báo cáo)."""
+    """Compare kernels with default parameters — the table used by the report."""
     cv = StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=RANDOM_STATE)
     rows = []
     for kernel in ("linear", "rbf", "poly", "sigmoid"):
@@ -115,9 +114,7 @@ def main() -> None:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
 
-    MODEL_DIR.mkdir(exist_ok=True)
-
-    # 1. Dữ liệu ---------------------------------------------------------
+    # 1. Data --------------------------------------------------------------
     df, source_used = dl.load_data(args.source)
     print(f"[1/6] Nguồn dữ liệu: {source_used} — {len(df)} mẫu, {len(dl.FEATURES)} đặc trưng")
 
@@ -143,7 +140,7 @@ def main() -> None:
     )
     print(f"[2/6] Chia dữ liệu: {len(X_train)} mẫu huấn luyện / {len(X_test)} mẫu kiểm tra (stratify)")
 
-    # 2. So sánh kernel --------------------------------------------------
+    # 2. Kernel comparison ---------------------------------------------------
     kernel_rows = compare_kernels(X_train, y_train, X_test, y_test)
     print("[3/6] So sánh kernel (tham số mặc định):")
     for row in kernel_rows:
@@ -152,7 +149,7 @@ def main() -> None:
             f"   test = {row['test_accuracy']:.4f}   SV = {row['n_support_vectors']}"
         )
 
-    # 3. Tìm siêu tham số ------------------------------------------------
+    # 3. Hyper-parameter search ----------------------------------------------
     cv = StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=RANDOM_STATE)
     search = GridSearchCV(
         build_pipeline(), PARAM_GRID, cv=cv, scoring="accuracy", n_jobs=-1, refit=True
@@ -168,11 +165,11 @@ def main() -> None:
 
     model: Pipeline = search.best_estimator_
 
-    # Mô hình đem triển khai: thêm Platt scaling để API trả được xác suất từng lớp.
+    # Deployed model: add Platt scaling so the API can return per-class probabilities.
     deployed = build_calibrated_pipeline(best_params).fit(X_train, y_train)
     agreement = float((deployed.predict(X_test) == model.predict(X_test)).mean())
 
-    # 4. Đánh giá --------------------------------------------------------
+    # 4. Evaluation ----------------------------------------------------------
     y_pred_train = model.predict(X_train)
     y_pred_test = model.predict(X_test)
     cv_scores = cross_val_score(model, X, y, cv=cv, scoring="accuracy")
@@ -236,13 +233,13 @@ def main() -> None:
         "kernel_comparison": kernel_rows,
     }
 
-    (MODEL_DIR / "metrics.json").write_text(
+    (BASE_DIR / "metrics.json").write_text(
         json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    joblib.dump(deployed, MODEL_DIR / "svm_model.pkl")
-    print(f"[6/6] Đã lưu model/svm_model.pkl và model/metrics.json")
+    joblib.dump(deployed, BASE_DIR / "svm_model.pkl")
+    print("[6/6] Đã lưu svm_model.pkl và metrics.json")
 
-    # 5. Hình cho báo cáo ------------------------------------------------
+    # 5. Plots for the report ------------------------------------------------
     if not args.no_figures:
         FIGURE_DIR.mkdir(exist_ok=True)
         created = fig.build_all(df, model, X_train, y_train, X_test, y_test, cm, kernel_rows, FIGURE_DIR)

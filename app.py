@@ -1,7 +1,7 @@
-"""API phân loại hoa Iris bằng mô hình SVM.
+"""Iris flower classification API backed by an SVM model.
 
-Chạy cục bộ:  uvicorn app:app --reload
-Tài liệu API: http://127.0.0.1:8000/docs
+Run locally:  uvicorn app:app --reload
+API docs:     http://127.0.0.1:8000/docs
 """
 
 from __future__ import annotations
@@ -22,8 +22,8 @@ from pydantic import BaseModel, Field
 import species as sp
 
 BASE_DIR = Path(__file__).resolve().parent
-MODEL_PATH = BASE_DIR / "model" / "svm_model.pkl"
-METRICS_PATH = BASE_DIR / "model" / "metrics.json"
+MODEL_PATH = BASE_DIR / "svm_model.pkl"
+METRICS_PATH = BASE_DIR / "metrics.json"
 STATIC_DIR = BASE_DIR / "static"
 
 FEATURE_ORDER = ["sepal_length", "sepal_width", "petal_length", "petal_width"]
@@ -33,14 +33,14 @@ state: dict = {"model": None, "metrics": {}, "loaded_at": None, "error": None}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Nạp mô hình đúng một lần lúc khởi động, không nạp lại ở mỗi request."""
+    """Load the model exactly once at startup instead of on every request."""
     try:
         state["model"] = joblib.load(MODEL_PATH)
         state["loaded_at"] = time.time()
-        print(f"[api] Đã nạp mô hình từ {MODEL_PATH}")
+        print(f"[api] Model loaded from {MODEL_PATH}")
     except Exception as exc:
         state["error"] = f"Không nạp được mô hình: {exc}"
-        print(f"[api] LỖI: {state['error']}")
+        print(f"[api] ERROR: {state['error']}")
 
     if METRICS_PATH.exists():
         state["metrics"] = json.loads(METRICS_PATH.read_text(encoding="utf-8"))
@@ -72,7 +72,7 @@ if STATIC_DIR.exists():
 
 
 class IrisInput(BaseModel):
-    """Bốn kích thước của bông hoa, đơn vị cm."""
+    """The four flower measurements, in centimetres."""
 
     sepal_length: float = Field(..., gt=0, le=30, examples=[5.1], description="Dài đài hoa (cm)")
     sepal_width: float = Field(..., gt=0, le=30, examples=[3.5], description="Rộng đài hoa (cm)")
@@ -81,6 +81,8 @@ class IrisInput(BaseModel):
 
 
 class PredictionOutput(BaseModel):
+    """Everything the web page needs to render one prediction."""
+
     class_id: int
     species_key: str
     display_name: str
@@ -95,6 +97,7 @@ class PredictionOutput(BaseModel):
 
 
 def get_model():
+    """Return the loaded model, or fail with 503 if startup could not load it."""
     model = state.get("model")
     if model is None:
         raise HTTPException(status_code=503, detail=state.get("error") or "Mô hình chưa sẵn sàng")
@@ -103,7 +106,7 @@ def get_model():
 
 @app.get("/", include_in_schema=False)
 def home():
-    """Giao diện web cho người dùng cuối."""
+    """Serve the end-user web page."""
     index = STATIC_DIR / "index.html"
     if index.exists():
         return FileResponse(index)
@@ -112,7 +115,7 @@ def home():
 
 @app.get("/health", tags=["Hệ thống"])
 def health():
-    """Kiểm tra sức khoẻ dịch vụ — dùng cho HEALTHCHECK của Docker và nginx."""
+    """Service health probe — Render calls this endpoint (healthCheckPath)."""
     healthy = state.get("model") is not None
     return {
         "status": "healthy" if healthy else "unhealthy",
@@ -124,14 +127,14 @@ def health():
 
 @app.get("/species", tags=["Thông tin"])
 def species_list():
-    """Danh sách 3 loài hoa mà mô hình có thể nhận diện."""
+    """List the three species the model can recognise."""
     items = [sp.get(i) for i in range(len(sp.SPECIES))]
     return {"count": len(items), "species": items}
 
 
 @app.get("/metrics", tags=["Thông tin"])
 def metrics():
-    """Số liệu đánh giá của mô hình đang chạy (sinh ra bởi train.py)."""
+    """Evaluation figures for the running model (produced by train.py)."""
     if not state["metrics"]:
         raise HTTPException(status_code=404, detail="Chưa có metrics.json — hãy chạy train.py")
     m = state["metrics"]
@@ -146,7 +149,7 @@ def metrics():
 
 @app.post("/predict", response_model=PredictionOutput, tags=["Dự đoán"])
 def predict(data: IrisInput):
-    """Dự đoán loài hoa từ 4 kích thước."""
+    """Predict the species from the four measurements."""
     model = get_model()
     features = np.array([[getattr(data, name) for name in FEATURE_ORDER]], dtype=float)
 

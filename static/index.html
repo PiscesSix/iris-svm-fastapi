@@ -3,79 +3,98 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Phân loại hoa Iris bằng SVM</title>
+<title>Iris SVM Classification</title>
 <style>
+  /* Palette and layout follow the reference demo: indigo accent on a soft gradient. */
   *, *::before, *::after { box-sizing: border-box; }
   :root {
-    --indigo: #4f46e5; --ink: #1f2937; --muted: #6b7280; --line: #e5e7eb;
+    --indigo: #4f46e5; --indigo-soft: #eef2ff;
+    --ink: #1f2937; --muted: #6b7280; --line: #e5e7eb;
     --setosa: #4f46e5; --versicolor: #0ea5e9; --virginica: #f97316;
   }
   body {
     margin: 0; min-height: 100vh; padding: 24px 16px;
-    display: flex; align-items: flex-start; justify-content: center;
+    display: grid; place-items: start center;
     font-family: "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
     color: var(--ink); background: linear-gradient(135deg, #eef2ff, #fdf2f8);
   }
   .card {
-    width: min(100%, 680px); background: #fff; border-radius: 20px;
-    padding: 28px; box-shadow: 0 18px 45px rgba(0,0,0,.09);
+    width: min(100%, 620px); background: #fff; border-radius: 22px;
+    padding: 30px; box-shadow: 0 20px 50px rgba(0,0,0,.13);
   }
-  h1 { margin: 0 0 4px; font-size: 1.5rem; color: var(--indigo); text-align: center; }
-  .sub { margin: 0 0 22px; text-align: center; color: var(--muted); font-size: .92rem; }
+  h1 { margin: 0 0 6px; font-size: 1.55rem; color: var(--indigo); text-align: center; }
+  .sub { margin: 0 0 6px; text-align: center; color: var(--muted); font-size: .92rem; }
+
+  /* Service badge: tells the presenter whether the Render instance is awake. */
+  .status { display: flex; justify-content: center; align-items: center; gap: 7px;
+            margin: 0 0 20px; font-size: .8rem; color: var(--muted); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #d1d5db; }
+  .dot.ok { background: #16a34a; } .dot.bad { background: #dc2626; }
+
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  label { display: block; font-weight: 600; font-size: .9rem; }
+  label { display: block; font-weight: 700; font-size: .88rem; }
   input {
-    width: 100%; margin-top: 6px; padding: 11px 12px; font-size: 1rem;
+    width: 100%; margin-top: 7px; padding: 12px; font-size: 16px;
     border: 1px solid #d1d5db; border-radius: 10px;
   }
   input:focus { outline: 2px solid var(--indigo); outline-offset: 1px; border-color: transparent; }
-  .row { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
   button {
-    flex: 1 1 200px; padding: 13px; font-size: 1rem; font-weight: 700;
+    width: 100%; margin-top: 20px; padding: 14px; font-size: 16px; font-weight: 700;
     border: 0; border-radius: 10px; background: var(--indigo); color: #fff; cursor: pointer;
   }
-  button.ghost { background: #eef2ff; color: var(--indigo); flex: 0 1 auto; padding: 13px 16px; }
   button:disabled { background: #9ca3af; cursor: progress; }
+
   .samples { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .samples span { font-size: .85rem; color: var(--muted); }
+  .samples span { font-size: .84rem; color: var(--muted); }
   .chip {
-    border: 1px solid var(--line); background: #fff; border-radius: 999px;
-    padding: 5px 12px; font-size: .82rem; cursor: pointer; color: var(--ink);
+    width: auto; margin: 0; padding: 6px 13px; font-size: .82rem; font-weight: 600;
+    border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 999px;
   }
-  .chip:hover { border-color: var(--indigo); color: var(--indigo); }
-  .result { margin-top: 22px; padding: 18px; border-radius: 16px; background: #f0fdf4; border: 1px solid #bbf7d0; }
-  .result.error { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
-  .result h2 { margin: 0 0 4px; font-size: 1.25rem; }
-  .result .vn { color: var(--muted); font-size: .9rem; margin: 0 0 10px; }
-  .result p.desc { margin: 0 0 14px; line-height: 1.55; font-size: .94rem; }
-  .result img { width: 100%; height: 260px; object-fit: cover; border-radius: 12px; }
-  .credit { margin-top: 6px; font-size: .74rem; color: var(--muted); }
+  .chip:hover { border-color: var(--indigo); color: var(--indigo); background: var(--indigo-soft); }
+
+  .result { margin-top: 22px; padding: 18px; border-radius: 16px; background: #ecfdf5; }
+  .result.error { background: #fef2f2; color: #991b1b; }
+  .result h2 { margin: 0 0 4px; font-size: 1.3rem; }
+  .meta { margin: 0 0 10px; font-size: .86rem; color: var(--muted); }
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 999px;
+           background: var(--indigo); color: #fff; font-weight: 700; font-size: .78rem; }
+  .desc { margin: 0 0 14px; line-height: 1.55; font-size: .94rem; }
+  .result img { width: 100%; height: 280px; object-fit: cover; border-radius: 14px; margin-top: 4px; }
+  .credit { margin-top: 6px; font-size: 12px; color: var(--muted); }
+
   .bars { margin-top: 14px; display: grid; gap: 8px; }
-  .bar-row { display: grid; grid-template-columns: 96px 1fr 56px; gap: 8px; align-items: center; font-size: .85rem; }
-  .track { display: block; height: 10px; background: var(--line); border-radius: 999px; overflow: hidden; }
+  .bar-row { display: grid; grid-template-columns: 92px 1fr 54px; gap: 8px;
+             align-items: center; font-size: .85rem; }
+  .track { display: block; height: 10px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
   .fill { display: block; height: 100%; min-width: 2px; border-radius: 999px; transition: width .35s ease; }
-  footer { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line);
-           font-size: .8rem; color: var(--muted); display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+
+  /* Copy helpers: handy when demoing or pasting the call into the report. */
+  .tools { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .tool { width: auto; margin: 0; padding: 7px 12px; font-size: .8rem; font-weight: 600;
+          background: #fff; color: var(--indigo); border: 1px solid var(--line); border-radius: 8px; }
+  .tool:hover { background: var(--indigo-soft); border-color: var(--indigo); }
+
+  footer { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--line);
+           font-size: .8rem; color: var(--muted);
+           display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
   footer a { color: var(--indigo); }
-  @media (max-width: 520px) { .grid { grid-template-columns: 1fr; } .card { padding: 20px; } }
+  @media (max-width: 520px) { .grid { grid-template-columns: 1fr; } .card { padding: 22px; } }
 </style>
 </head>
 <body>
 <main class="card">
-  <h1>Phân loại hoa Iris bằng SVM</h1>
-  <p class="sub">Nhập bốn kích thước của bông hoa (đơn vị cm), mô hình sẽ dự đoán loài và hiển thị ảnh minh hoạ.</p>
+  <h1>Iris SVM Classification</h1>
+  <p class="sub">Nhập bốn kích thước của bông hoa, API sẽ dự đoán loài và trả về hình minh hoạ.</p>
+  <p class="status"><span class="dot" id="dot"></span><span id="status">Đang kiểm tra dịch vụ...</span></p>
 
   <form id="form">
     <div class="grid">
-      <label>Dài đài hoa <input id="sepal_length" type="number" step="0.1" min="0.1" max="30" value="5.1" required></label>
-      <label>Rộng đài hoa <input id="sepal_width" type="number" step="0.1" min="0.1" max="30" value="3.5" required></label>
-      <label>Dài cánh hoa <input id="petal_length" type="number" step="0.1" min="0.1" max="30" value="1.4" required></label>
-      <label>Rộng cánh hoa <input id="petal_width" type="number" step="0.1" min="0.1" max="30" value="0.2" required></label>
+      <label>Sepal length (cm)<input id="sepal_length" type="number" step="0.1" min="0.1" max="30" value="5.1" required></label>
+      <label>Sepal width (cm)<input id="sepal_width" type="number" step="0.1" min="0.1" max="30" value="3.5" required></label>
+      <label>Petal length (cm)<input id="petal_length" type="number" step="0.1" min="0.1" max="30" value="1.4" required></label>
+      <label>Petal width (cm)<input id="petal_width" type="number" step="0.1" min="0.1" max="30" value="0.2" required></label>
     </div>
-    <div class="row">
-      <button id="btn" type="submit">Dự đoán loài hoa</button>
-      <button class="ghost" type="button" id="reset">Đặt lại</button>
-    </div>
+    <button id="btn" type="submit">Dự đoán loài hoa</button>
   </form>
 
   <div class="samples">
@@ -83,53 +102,97 @@
     <button class="chip" type="button" data-v="5.1,3.5,1.4,0.2">setosa</button>
     <button class="chip" type="button" data-v="6.0,2.7,4.2,1.3">versicolor</button>
     <button class="chip" type="button" data-v="6.5,3.0,5.5,2.0">virginica</button>
+    <button class="chip" type="button" id="reset">Đặt lại</button>
   </div>
 
   <section id="result" aria-live="polite"></section>
 
   <footer>
-    <span>Mô hình: SVM (scikit-learn) · API: FastAPI</span>
+    <span id="modelInfo">Mô hình: SVM (scikit-learn) · API: FastAPI</span>
     <span><a href="/docs">Tài liệu API</a> · <a href="/metrics">Số liệu mô hình</a></span>
   </footer>
 </main>
 
 <script>
 const FIELDS = ["sepal_length", "sepal_width", "petal_length", "petal_width"];
+const SHORT = { sepal_length: "sl", sepal_width: "sw", petal_length: "pl", petal_width: "pw" };
 const COLORS = { setosa: "#4f46e5", versicolor: "#0ea5e9", virginica: "#f97316" };
+const DEFAULTS = ["5.1", "3.5", "1.4", "0.2"];
+const STORE_KEY = "iris-last-input";
+
 const form = document.getElementById("form");
 const btn = document.getElementById("btn");
 const box = document.getElementById("result");
 
-// Cho phép mở sẵn một mẫu qua URL, ví dụ:  /?sl=6.5&sw=3.0&pl=5.5&pw=2.0&auto=1
-// Tiện để gửi link demo và để chụp màn hình có sẵn kết quả.
-(function applyQueryParams() {
+const read = () => Object.fromEntries(FIELDS.map(f => [f, parseFloat(document.getElementById(f).value)]));
+const write = values => FIELDS.forEach((f, i) => document.getElementById(f).value = values[i]);
+
+// Prefill from the URL, e.g. /?sl=6.5&sw=3.0&pl=5.5&pw=2.0&auto=1 — used for demo links
+// and for screenshots that need a result already on screen.
+function applyQueryParams() {
   const q = new URLSearchParams(location.search);
-  const alias = { sl: "sepal_length", sw: "sepal_width", pl: "petal_length", pw: "petal_width" };
   let filled = false;
-  for (const [short, field] of Object.entries(alias)) {
-    const value = q.get(short) ?? q.get(field);
+  for (const field of FIELDS) {
+    const value = q.get(SHORT[field]) ?? q.get(field);
     if (value !== null && value !== "" && !Number.isNaN(parseFloat(value))) {
       document.getElementById(field).value = value;
       filled = true;
     }
   }
-  if (filled && q.get("auto") === "1") {
-    window.addEventListener("load", () => form.requestSubmit());
-  }
-})();
+  return filled && q.get("auto") === "1";
+}
 
-document.querySelectorAll(".chip").forEach(chip => {
+// Fall back to whatever was typed last time, so a reload does not lose the input.
+function restoreLastInput() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORE_KEY) || "null");
+    if (Array.isArray(saved) && saved.length === FIELDS.length) write(saved);
+  } catch (_) { /* private mode or blocked storage: keep the defaults */ }
+}
+
+function rememberInput() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(FIELDS.map(f => document.getElementById(f).value))); }
+  catch (_) { /* storage unavailable, nothing to do */ }
+}
+
+// Probe /health on load: on Render's free plan the first request may need ~30-60s.
+async function checkHealth() {
+  const dot = document.getElementById("dot");
+  const text = document.getElementById("status");
+  try {
+    const res = await fetch("/health");
+    const body = await res.json();
+    const ok = body.status === "healthy";
+    dot.className = "dot " + (ok ? "ok" : "bad");
+    text.textContent = ok ? "Dịch vụ sẵn sàng · mô hình đã nạp" : "Dịch vụ chạy nhưng chưa nạp được mô hình";
+  } catch (_) {
+    dot.className = "dot bad";
+    text.textContent = "Không kết nối được tới dịch vụ";
+  }
+}
+
+// Show the accuracy of the running model in the footer so the demo can quote it.
+async function showModelInfo() {
+  try {
+    const m = await (await fetch("/metrics")).json();
+    const acc = (m.performance.accuracy_test * 100).toFixed(2);
+    const kernel = m.model.best_params.kernel;
+    document.getElementById("modelInfo").textContent =
+      `SVM kernel=${kernel} · accuracy ${acc}% · FastAPI`;
+  } catch (_) { /* metrics.json missing: keep the static label */ }
+}
+
+document.querySelectorAll(".chip[data-v]").forEach(chip => {
   chip.addEventListener("click", () => {
-    const vals = chip.dataset.v.split(",");
-    FIELDS.forEach((f, i) => document.getElementById(f).value = vals[i]);
+    write(chip.dataset.v.split(","));
     form.requestSubmit();
   });
 });
 
 document.getElementById("reset").addEventListener("click", () => {
-  const defaults = ["5.1", "3.5", "1.4", "0.2"];
-  FIELDS.forEach((f, i) => document.getElementById(f).value = defaults[i]);
+  write(DEFAULTS);
   box.innerHTML = "";
+  box.className = "";
 });
 
 function showError(message) {
@@ -137,7 +200,7 @@ function showError(message) {
   box.innerHTML = `<strong>Không dự đoán được.</strong><p class="desc">${message}</p>`;
 }
 
-function showResult(data) {
+function showResult(data, ms) {
   const rows = Object.entries(data.probabilities)
     .sort((a, b) => b[1] - a[1])
     .map(([name, p]) => `
@@ -150,20 +213,48 @@ function showResult(data) {
   box.className = "result";
   box.innerHTML = `
     <h2>${data.display_name}</h2>
-    <p class="vn">${data.vietnamese_name} · lớp ${data.class_id} · độ tin cậy ${(data.confidence * 100).toFixed(1)}%</p>
+    <p class="meta">${data.vietnamese_name} · lớp ${data.class_id} ·
+       <span class="badge">${(data.confidence * 100).toFixed(1)}%</span> · ${ms} ms</p>
     <p class="desc">${data.description}</p>
-    <img src="${data.image_url}" alt="${data.alt_text}" loading="lazy">
+    <img src="${data.image_url}" alt="${data.alt_text}">
     <p class="credit">Ảnh: ${data.source} — ${data.license}</p>
-    <div class="bars">${rows}</div>`;
+    <div class="bars">${rows}</div>
+    <div class="tools">
+      <button class="tool" type="button" data-copy="link">Sao chép liên kết mẫu này</button>
+      <button class="tool" type="button" data-copy="curl">Sao chép lệnh curl</button>
+      <button class="tool" type="button" data-copy="json">Sao chép JSON kết quả</button>
+    </div>`;
+
+  const payload = read();
+  const link = `${location.origin}/?` +
+    FIELDS.map(f => `${SHORT[f]}=${payload[f]}`).join("&") + "&auto=1";
+  const curl = `curl -X POST "${location.origin}/predict" \\\n` +
+    `  -H "Content-Type: application/json" \\\n` +
+    `  -d '${JSON.stringify(payload)}'`;
+  const texts = { link, curl, json: JSON.stringify(data, null, 2) };
+
+  box.querySelectorAll(".tool").forEach(tool => {
+    tool.addEventListener("click", async () => {
+      const label = tool.textContent;
+      try {
+        await navigator.clipboard.writeText(texts[tool.dataset.copy]);
+        tool.textContent = "Đã sao chép";
+      } catch (_) {
+        tool.textContent = "Không sao chép được";
+      }
+      setTimeout(() => { tool.textContent = label; }, 1400);
+    });
+  });
 }
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const payload = {};
-  for (const f of FIELDS) payload[f] = parseFloat(document.getElementById(f).value);
+  const payload = read();
+  rememberInput();
 
   btn.disabled = true;
   btn.textContent = "Đang dự đoán...";
+  const started = performance.now();
   try {
     const res = await fetch("/predict", {
       method: "POST",
@@ -171,13 +262,14 @@ form.addEventListener("submit", async (event) => {
       body: JSON.stringify(payload)
     });
     const data = await res.json();
+    const ms = Math.round(performance.now() - started);
     if (!res.ok) {
       const detail = Array.isArray(data.detail)
         ? data.detail.map(d => `${d.loc?.slice(-1)[0] ?? ""}: ${d.msg}`).join("<br>")
         : (data.detail || `Mã lỗi HTTP ${res.status}`);
       showError(detail);
     } else {
-      showResult(data);
+      showResult(data, ms);
     }
   } catch (err) {
     showError("Không kết nối được tới máy chủ. " + err.message);
@@ -186,6 +278,12 @@ form.addEventListener("submit", async (event) => {
     btn.textContent = "Dự đoán loài hoa";
   }
 });
+
+const autoSubmit = applyQueryParams();
+if (!autoSubmit && !location.search) restoreLastInput();
+checkHealth();
+showModelInfo();
+if (autoSubmit) window.addEventListener("load", () => form.requestSubmit());
 </script>
 </body>
 </html>

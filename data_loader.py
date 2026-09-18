@@ -1,7 +1,7 @@
-"""Nạp dữ liệu Iris.
+"""Iris dataset loading.
 
-Nguồn chính: Kaggle `uciml/iris` tải bằng kagglehub.
-Nguồn dự phòng: `sklearn.datasets.load_iris()` khi máy không có mạng.
+Primary source:  Kaggle `uciml/iris`, downloaded with kagglehub.
+Fallback source: `sklearn.datasets.load_iris()` when the machine is offline.
 """
 
 from __future__ import annotations
@@ -28,16 +28,16 @@ _KAGGLE_RENAME = {
 
 
 def download_kaggle_csv(force: bool = False) -> Path:
-    """Tải Iris.csv từ Kaggle về `da1/data/` và trả về đường dẫn."""
+    """Download Iris.csv from Kaggle into `data/` and return its path."""
     if CSV_PATH.exists() and not force:
         return CSV_PATH
 
-    import kagglehub  # import trễ: chỉ cần khi huấn luyện, không cần trong image API
+    import kagglehub  # imported lazily: only training needs it, the API does not
 
     cache_dir = Path(kagglehub.dataset_download(KAGGLE_DATASET))
     source = cache_dir / "Iris.csv"
     if not source.exists():
-        raise FileNotFoundError(f"Không tìm thấy Iris.csv trong {cache_dir}")
+        raise FileNotFoundError(f"Iris.csv not found in {cache_dir}")
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, CSV_PATH)
@@ -45,7 +45,7 @@ def download_kaggle_csv(force: bool = False) -> Path:
 
 
 def load_kaggle() -> pd.DataFrame:
-    """Đọc bản Kaggle, chuẩn hoá tên cột và nhãn."""
+    """Read the Kaggle copy, normalising column names and labels."""
     path = download_kaggle_csv()
     df = pd.read_csv(path)
     df = df.drop(columns=[c for c in ("Id",) if c in df.columns])
@@ -57,7 +57,7 @@ def load_kaggle() -> pd.DataFrame:
 
 
 def load_sklearn() -> pd.DataFrame:
-    """Đọc bản đi kèm scikit-learn."""
+    """Read the copy bundled with scikit-learn."""
     from sklearn.datasets import load_iris
 
     bunch = load_iris()
@@ -68,26 +68,29 @@ def load_sklearn() -> pd.DataFrame:
 
 
 def load_data(source: str = "auto") -> tuple[pd.DataFrame, str]:
-    """Trả về (DataFrame, tên nguồn đã dùng).
+    """Return (DataFrame, name of the source actually used).
 
-    source: "kaggle" | "sklearn" | "auto" (thử Kaggle trước, lỗi thì dùng sklearn).
+    source: "kaggle" | "sklearn" | "auto" (try Kaggle first, fall back to sklearn).
     """
     if source == "kaggle":
         return load_kaggle(), "kaggle"
     if source == "sklearn":
         return load_sklearn(), "sklearn"
     if source != "auto":
-        raise ValueError(f"source không hợp lệ: {source!r}")
+        raise ValueError(f"invalid source: {source!r}")
 
     try:
         return load_kaggle(), "kaggle"
-    except Exception as exc:  # không có mạng, Kaggle đổi cấu trúc, thiếu kagglehub...
-        print(f"[data] Không tải được dữ liệu Kaggle ({exc}); dùng bản scikit-learn.")
+    except Exception as exc:  # offline, Kaggle layout changed, kagglehub missing...
+        print(f"[data] Could not fetch the Kaggle copy ({exc}); using the scikit-learn one.")
         return load_sklearn(), "sklearn"
 
 
 def compare_sources() -> dict:
-    """So sánh hai nguồn dữ liệu để chứng minh chúng tương đương (mục 3.1 của CLAUDE.md)."""
+    """Compare both sources to show they describe the same dataset.
+
+    The report quotes these numbers, so the note is written in Vietnamese.
+    """
     kaggle = load_kaggle()
     sk = load_sklearn()
 
@@ -97,7 +100,7 @@ def compare_sources() -> dict:
     diff_idx = np.where(np.abs(xk - xs).sum(axis=1) > 0)[0]
     differing_rows = [
         {
-            "row": int(i) + 1,  # đánh số như trong file CSV (1-based)
+            "row": int(i) + 1,  # numbered as in the CSV file (1-based)
             "species": kaggle["species"].iloc[i],
             "kaggle": [float(v) for v in xk[i]],
             "sklearn": [float(v) for v in xs[i]],
@@ -124,7 +127,7 @@ def compare_sources() -> dict:
 
 
 def describe(df: pd.DataFrame) -> dict:
-    """Thống kê mô tả dùng cho báo cáo."""
+    """Descriptive statistics used by the report."""
     stats = df[FEATURES].describe().to_dict()
     return {
         "n_samples": int(len(df)),
@@ -141,6 +144,6 @@ def describe(df: pd.DataFrame) -> dict:
 
 if __name__ == "__main__":
     frame, used = load_data()
-    print(f"Nguồn dữ liệu: {used}")
+    print(f"Data source: {used}")
     print(frame.head())
     print(describe(frame))

@@ -1,4 +1,4 @@
-"""Sinh toàn bộ hình trực quan hoá dùng trong tài liệu LaTeX và slide."""
+"""Generate every plot used by the LaTeX report and the slide deck."""
 
 from __future__ import annotations
 
@@ -80,7 +80,7 @@ def correlation(df: pd.DataFrame, out: Path) -> Path:
 
 
 def decision_boundary(df: pd.DataFrame, model: Pipeline, out: Path) -> Path:
-    """Huấn luyện lại SVM trên 2 đặc trưng cánh hoa để vẽ được biên quyết định 2D."""
+    """Refit an SVM on the two petal features so the boundary can be drawn in 2D."""
     feats = ["petal_length", "petal_width"]
     X = df[feats].to_numpy(float)
     y = df["target"].to_numpy(int)
