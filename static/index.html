@@ -79,9 +79,31 @@
            display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
   footer a { color: var(--indigo); }
   @media (max-width: 520px) { .grid { grid-template-columns: 1fr; } .card { padding: 22px; } }
+
+  /* Student card, pinned to the top-right corner. Hidden by default and only shown
+     once the viewport is wide enough that it cannot overlap the 620px main card
+     (620 + 2 x (240 badge + 36 gutter) = 1172), so shrinking the window drops it. */
+  .student {
+    display: none; position: fixed; top: 24px; right: 24px; width: 240px;
+    background: #fff; border-radius: 14px; padding: 14px 16px;
+    box-shadow: 0 10px 28px rgba(0,0,0,.10); border: 1px solid var(--line);
+    font-size: .82rem; line-height: 1.5; color: var(--muted);
+  }
+  .student dt { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em;
+                color: var(--muted); margin: 0 0 6px; }
+  .student dd { margin: 0; }
+  .student .name { font-weight: 700; font-size: .95rem; color: var(--indigo); }
+  @media (min-width: 1180px) { .student { display: block; } }
 </style>
 </head>
 <body>
+<dl class="student">
+  <dt>Sinh viên thực hiện</dt>
+  <dd class="name">La Thị Mỹ Hoà</dd>
+  <dd>Lớp 24CKDL</dd>
+  <dd>Máy học nâng cao</dd>
+</dl>
+
 <main class="card">
   <h1>Iris SVM Classification</h1>
   <p class="sub">Nhập bốn kích thước của bông hoa, API sẽ dự đoán loài và trả về hình minh hoạ.</p>
