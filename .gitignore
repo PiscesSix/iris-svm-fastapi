@@ -5,3 +5,6 @@ __pycache__/
 .DS_Store
 
 # LƯU Ý: KHÔNG bỏ qua svm_model.pkl — Render cần tệp này lúc khởi động.
+
+# Hình cho báo cáo LaTeX — chỉ giữ ở máy, tái tạo bằng: python figures.py
+figures/

@@ -36,7 +36,8 @@ python -m pytest tests -v
 uvicorn app:app --reload        # http://127.0.0.1:8000/docs
 ```
 
-`train.py` sinh ra `svm_model.pkl`, `metrics.json` và 8 hình trong `figures/`.
+`train.py` sinh ra `svm_model.pkl` và `metrics.json`; `python figures.py` sinh 8 hình PNG
+trong `figures/` cho tài liệu LaTeX (thư mục này **không** được commit — xem `.gitignore`).
 
 ## Triển khai lên Render
 
@@ -90,9 +91,11 @@ iris-fastapi/
 ├── Procfile              # lệnh khởi động
 ├── data/Iris.csv         # dữ liệu Kaggle uciml/iris
 ├── static/               # giao diện web + ảnh 3 loài
-├── tests/test_api.py     # 10 kiểm thử pytest
-└── figures/              # hình PNG cho tài liệu LaTeX
+└── tests/test_api.py     # 10 kiểm thử pytest
 ```
+
+Repo chỉ chứa mã nguồn, mô hình và tài nguyên mà dịch vụ cần lúc chạy. Hình cho tài liệu
+LaTeX (`figures/`) chỉ giữ ở máy và tái tạo được bằng `python figures.py`.
 
 ## Ghi chú kỹ thuật
 
