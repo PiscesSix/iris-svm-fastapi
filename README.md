@@ -3,7 +3,7 @@
 Mô hình SVM phân loại ba loài hoa Iris (*setosa*, *versicolor*, *virginica*), đóng gói thành
 REST API bằng FastAPI và triển khai trực tuyến trên **Render**.
 
-**URL công khai:** `https://<ten-service>.onrender.com` — cập nhật lại sau khi tạo service trên Render.
+**URL công khai:** https://iris-svm-fastapi-uvo0.onrender.com
 
 ## Kết quả mô hình
 
@@ -41,7 +41,7 @@ trong `figures/` cho tài liệu LaTeX (thư mục này **không** được comm
 
 ## Triển khai lên Render
 
-1. Push thư mục này lên một repo GitHub (đã có `.git` sẵn, remote `origin`).
+1. Push thư mục này lên một repo GitHub (dịch vụ đang chạy build từ `PiscesSix/iris-svm-fastapi`).
 2. Trên https://render.com → **New +** → **Web Service** → chọn repo.
 3. Render tự đọc `render.yaml`; nếu điền tay thì dùng:
    - Runtime: **Python 3**
@@ -50,6 +50,8 @@ trong `figures/` cho tài liệu LaTeX (thư mục này **không** được comm
    - Health Check Path: `/health`
    - Instance Type: **Free**
 4. Bấm **Create Web Service**, chờ build ~2–4 phút, lấy URL `https://<ten-service>.onrender.com`.
+   Tên service là duy nhất toàn Render; `iris-svm-fastapi` đã có người dùng nên dịch vụ này
+   nhận hậu tố và thành `iris-svm-fastapi-uvo0`.
 
 **Lưu ý gói Free:** service **ngủ sau ~15 phút** không có request; request đầu tiên sau đó mất
 30–60 giây để đánh thức. Trước khi demo phải mở URL trước một lần.
@@ -69,7 +71,7 @@ nếu không Render sẽ báo `FileNotFoundError` lúc khởi động.
 | POST | `/predict` | Dự đoán loài hoa từ 4 kích thước |
 
 ```bash
-curl -X POST "https://<ten-service>.onrender.com/predict" \
+curl -X POST "https://iris-svm-fastapi-uvo0.onrender.com/predict" \
   -H "Content-Type: application/json" \
   -d '{"sepal_length":5.1,"sepal_width":3.5,"petal_length":1.4,"petal_width":0.2}'
 ```
