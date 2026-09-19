@@ -15,7 +15,9 @@ SPECIES = [
         ),
         "image_url": "/static/images/setosa.jpg",
         "alt_text": "Hình minh hoạ hoa Iris setosa",
-        "source": "Wikimedia Commons — Денис Анисимов",
+        # Author name romanised so the report appendix renders under pdfLaTeX;
+        # IMAGE_CREDITS.md keeps the Cyrillic original alongside this spelling.
+        "source": "Wikimedia Commons - Denis Anisimov",
         "license": "Public domain",
     },
     {
