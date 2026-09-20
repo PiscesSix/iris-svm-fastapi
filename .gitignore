@@ -1,7 +1,6 @@
 __pycache__/
 *.py[cod]
 .venv/
-.pytest_cache/
 .DS_Store
 
 # LƯU Ý: KHÔNG bỏ qua svm_model.pkl — Render cần tệp này lúc khởi động.

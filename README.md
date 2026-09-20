@@ -17,27 +17,38 @@ REST API bằng FastAPI và triển khai trực tuyến trên **Render**.
 
 Số liệu đầy đủ nằm trong `metrics.json` và endpoint `/metrics`.
 
-## Chạy lại từ đầu trên máy trắng
+## Chạy trên máy trắng — một dòng lệnh
 
-```powershell
-# 1. Môi trường
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r iris-fastapi\requirements-dev.txt
+Yêu cầu duy nhất: đã cài **Git** và **Python 3.10+**. Mở **Git Bash** rồi dán đúng một dòng:
 
-# 2. Huấn luyện (tự tải dữ liệu Kaggle bằng kagglehub, không cần đăng nhập)
-cd iris-fastapi
-python train.py
-
-# 3. Kiểm thử
-python -m pytest tests -v
-
-# 4. Chạy API cục bộ
-uvicorn app:app --reload        # http://127.0.0.1:8000/docs
+```bash
+git clone https://github.com/PiscesSix/iris-svm-fastapi.git && cd iris-svm-fastapi && bash run.sh
 ```
 
-`train.py` sinh ra `svm_model.pkl` và `metrics.json`; `python figures.py` sinh 8 hình PNG
-trong `figures/` cho tài liệu LaTeX (thư mục này **không** được commit — xem `.gitignore`).
+`run.sh` tự tạo `.venv`, cài thư viện trong `requirements.txt`, khởi động Uvicorn và mở trình
+duyệt tại http://127.0.0.1:8000. Dừng bằng `Ctrl+C`. Lần chạy sau chỉ cần `bash run.sh`
+(môi trường đã có sẵn nên khởi động trong vài giây).
+
+Nếu quen PowerShell hơn thì dùng bản tương đương:
+
+```powershell
+git clone https://github.com/PiscesSix/iris-svm-fastapi.git; cd iris-svm-fastapi; .\run.ps1
+```
+
+PowerShell chặn script lần đầu thì chạy `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` trước.
+
+### Huấn luyện lại mô hình
+
+Kho đã kèm sẵn `svm_model.pkl` nên không bắt buộc huấn luyện. Muốn dựng lại từ dữ liệu gốc:
+
+```bash
+bash run.sh train        # hoặc:  .\run.ps1 train
+```
+
+Lệnh này cài thêm `requirements-dev.txt`, chạy `train.py` (tự tải dữ liệu Kaggle bằng
+`kagglehub`, không cần đăng nhập) để sinh `svm_model.pkl` + `metrics.json`, rồi chạy
+`figures.py` sinh 8 hình PNG trong `figures/` cho tài liệu LaTeX (thư mục này **không** được
+commit — xem `.gitignore`).
 
 ## Triển khai lên Render
 
@@ -88,12 +99,13 @@ iris-fastapi/
 ├── svm_model.pkl         # mô hình đã huấn luyện (PHẢI commit)
 ├── metrics.json          # toàn bộ số liệu đánh giá
 ├── requirements.txt      # phụ thuộc lúc chạy API (Render cài tệp này)
-├── requirements-dev.txt  # thêm phụ thuộc để huấn luyện / vẽ hình / kiểm thử
+├── requirements-dev.txt  # thêm phụ thuộc để huấn luyện và vẽ hình
 ├── render.yaml           # cấu hình dịch vụ Render
 ├── Procfile              # lệnh khởi động
 ├── data/Iris.csv         # dữ liệu Kaggle uciml/iris
 ├── static/               # giao diện web + ảnh 3 loài
-└── tests/test_api.py     # 10 kiểm thử pytest
+├── run.sh                # cài + chạy bằng một lệnh (Git Bash)
+└── run.ps1               # bản tương đương cho PowerShell
 ```
 
 Repo chỉ chứa mã nguồn, mô hình và tài nguyên mà dịch vụ cần lúc chạy. Hình cho tài liệu
