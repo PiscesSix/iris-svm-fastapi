@@ -14,21 +14,26 @@ function Say($msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
 function Die($msg) { Write-Host "`nLOI: $msg" -ForegroundColor Red; exit 1 }
 
 # --- 1. Locate a Python interpreter -------------------------------------------
-$py = $null
+# `py -3` is the reliable launcher on Windows; a bare `python` may be the
+# Microsoft Store stub that exits without doing anything.
+$pyExe = $null
+$pyArgs = @()
 foreach ($c in @(@('py', '-3'), @('python'), @('python3'))) {
     $exe = $c[0]
+    # $c[1..($c.Count - 1)] would reverse-index a single-element array, so guard it.
+    $rest = @()
+    if ($c.Count -gt 1) { $rest = @($c[1..($c.Count - 1)]) }
     if (Get-Command $exe -ErrorAction SilentlyContinue) {
-        $rest = @($c[1..($c.Length - 1)])
         & $exe @rest -c "import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)" 2>$null
-        if ($LASTEXITCODE -eq 0) { $py = $c; break }
+        if ($LASTEXITCODE -eq 0) { $pyExe = $exe; $pyArgs = $rest; break }
     }
 }
-if (-not $py) { Die "Khong tim thay Python 3.10+. Cai tai https://www.python.org/downloads/ va tich 'Add python.exe to PATH'." }
+if (-not $pyExe) { Die "Khong tim thay Python 3.10+. Cai tai https://www.python.org/downloads/ va tich 'Add python.exe to PATH'." }
 
 # --- 2. Create the virtualenv on first run ------------------------------------
 if (-not (Test-Path '.venv')) {
     Say 'Tao moi truong ao .venv (chi lan dau)'
-    & $py[0] @($py[1..($py.Length - 1)]) -m venv .venv
+    & $pyExe @pyArgs -m venv .venv
 }
 $vpy = Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
 if (-not (Test-Path $vpy)) { Die 'Moi truong ao hong. Xoa thu muc .venv roi chay lai lenh nay.' }

@@ -19,30 +19,40 @@ Số liệu đầy đủ nằm trong `metrics.json` và endpoint `/metrics`.
 
 ## Chạy trên máy trắng — một dòng lệnh
 
-Yêu cầu duy nhất: đã cài **Git** và **Python 3.10+**. Mở **Git Bash** rồi dán đúng một dòng:
+Yêu cầu duy nhất: đã cài **Git** và **Python 3.10+**.
+
+> ⚠️ Hai dòng dưới đây **không thay thế cho nhau**. Dán dòng bash vào PowerShell sẽ báo lỗi
+> `The token '&&' is not a valid statement separator in this version` — Windows PowerShell 5.1
+> không hiểu `&&`. Chọn đúng dòng theo cửa sổ bạn đang mở.
+
+**Git Bash** (biểu tượng *Git Bash* trong Start Menu, hoặc chuột phải trong thư mục → *Open Git Bash here*):
 
 ```bash
 git clone https://github.com/PiscesSix/iris-svm-fastapi.git && cd iris-svm-fastapi && bash run.sh
 ```
 
-`run.sh` tự tạo `.venv`, cài thư viện trong `requirements.txt`, khởi động Uvicorn và mở trình
-duyệt tại http://127.0.0.1:8000. Dừng bằng `Ctrl+C`. Lần chạy sau chỉ cần `bash run.sh`
-(môi trường đã có sẵn nên khởi động trong vài giây).
-
-Nếu quen PowerShell hơn thì dùng bản tương đương:
+**PowerShell / Terminal của Windows:**
 
 ```powershell
-git clone https://github.com/PiscesSix/iris-svm-fastapi.git; cd iris-svm-fastapi; .\run.ps1
+git clone https://github.com/PiscesSix/iris-svm-fastapi.git; cd iris-svm-fastapi; powershell -ExecutionPolicy Bypass -File .\run.ps1
 ```
 
-PowerShell chặn script lần đầu thì chạy `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` trước.
+Phần `-ExecutionPolicy Bypass` là để PowerShell không chặn script lần đầu — nhờ nó mà dòng lệnh
+chạy được ngay, không phải chỉnh cấu hình máy trước.
+
+Cả hai script làm cùng một việc: tạo `.venv`, cài thư viện trong `requirements.txt`, khởi động
+Uvicorn và mở trình duyệt tại http://127.0.0.1:8000. Dừng bằng `Ctrl+C`. Lần chạy sau chỉ cần
+`bash run.sh` (hoặc `.\run.ps1`) — môi trường đã có sẵn nên khởi động trong vài giây.
+
+Muốn dùng cổng khác: `PORT=8080 bash run.sh` hoặc `.\run.ps1 -Port 8080`.
 
 ### Huấn luyện lại mô hình
 
 Kho đã kèm sẵn `svm_model.pkl` nên không bắt buộc huấn luyện. Muốn dựng lại từ dữ liệu gốc:
 
 ```bash
-bash run.sh train        # hoặc:  .\run.ps1 train
+bash run.sh train                                        # Git Bash
+powershell -ExecutionPolicy Bypass -File .\run.ps1 train  # PowerShell
 ```
 
 Lệnh này cài thêm `requirements-dev.txt`, chạy `train.py` (tự tải dữ liệu Kaggle bằng
