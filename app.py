@@ -2,11 +2,17 @@
 
 Run locally:  uvicorn app:app --reload
 API docs:     http://127.0.0.1:8000/docs
+
+This is the model module (SVM classification + five-model regression). With
+SERVICE_MODE=single (the default, used on Render) it also mounts the database API
+under /db and serves the web module at /, so one process runs all three modules.
+run.sh / run.ps1 set SERVICE_MODE=split and start each module on its own port.
 """
 
 from __future__ import annotations
 
 import json
+import mimetypes
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -15,7 +21,7 @@ import joblib
 import numpy as np
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -27,6 +33,11 @@ BASE_DIR = Path(__file__).resolve().parent
 MODEL_PATH = BASE_DIR / "svm_model.pkl"
 METRICS_PATH = BASE_DIR / "metrics.json"
 STATIC_DIR = BASE_DIR / "static"
+WEB_DIR = BASE_DIR / "web" / "public"
+SINGLE_SERVICE = settings.SERVICE_MODE != "split"
+
+# Windows can map .js to text/plain through the registry, which breaks ES modules.
+mimetypes.add_type("application/javascript", ".js")
 
 FEATURE_ORDER = ["sepal_length", "sepal_width", "petal_length", "petal_width"]
 
@@ -48,6 +59,14 @@ async def lifespan(app: FastAPI):
         state["metrics"] = json.loads(METRICS_PATH.read_text(encoding="utf-8"))
 
     regression_api.load()
+    if SINGLE_SERVICE:
+        # Render's disk is wiped on every deploy: recreate the demo account and first run.
+        try:
+            import seed
+
+            seed.seed_database()
+        except Exception as exc:
+            print(f"[api] WARNING: seeding the database failed: {exc}")
     yield
     state["model"] = None
 
@@ -109,8 +128,10 @@ def get_model():
 
 @app.get("/", include_in_schema=False)
 def home():
-    """Serve the end-user web page."""
-    index = STATIC_DIR / "index.html"
+    """Single-service mode serves the web module; split mode points to its own server."""
+    if not SINGLE_SERVICE:
+        return RedirectResponse(settings.get("WEB_URL", "http://127.0.0.1:8080/"))
+    index = WEB_DIR / "index.html"
     if index.exists():
         return FileResponse(index)
     return {"message": "Iris SVM API is running", "docs": "/docs"}
@@ -125,6 +146,7 @@ def health():
         "model_loaded": healthy,
         "model_file": MODEL_PATH.name,
         "regression_loaded": regression_api.state["models"] is not None,
+        "service_mode": "single" if SINGLE_SERVICE else "split",
         "uptime_seconds": round(time.time() - state["loaded_at"], 1) if state.get("loaded_at") else None,
     }
 
@@ -179,3 +201,18 @@ def predict(data: IrisInput):
 
 app.include_router(regression_api.router)
 
+if SINGLE_SERVICE:
+    # One process for Render's free plan: database API under /db, web module at /.
+    from db_api.main import app as db_app
+
+    app.mount("/db", db_app)
+
+    @app.get("/config.js", include_in_schema=False)
+    def web_config():
+        """API addresses for the web module: same origin, database API under /db."""
+        return Response('window.APP_CONFIG = {"modelApi": "", "dbApi": "/db"};\n',
+                        media_type="application/javascript")
+
+    if WEB_DIR.exists():
+        # Mounted last so every API route above keeps priority over static files.
+        app.mount("/", StaticFiles(directory=WEB_DIR, html=True), name="web")
