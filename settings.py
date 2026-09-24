@@ -54,5 +54,9 @@ JWT_EXPIRE_MINUTES = int(get("JWT_EXPIRE_MINUTES", "720"))
 
 
 def db_path() -> Path:
-    """SQLite file of the database API (read at call time so tests can override it)."""
-    return Path(get("DB_PATH", str(BASE_DIR / "data" / "app.db")))
+    """SQLite file of the database API (read at call time so tests can override it).
+
+    A relative DB_PATH is taken relative to the project folder, not the shell's cwd.
+    """
+    path = Path(get("DB_PATH") or "data/app.db")
+    return path if path.is_absolute() else BASE_DIR / path

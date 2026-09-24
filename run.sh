@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# One-shot bootstrap: create the virtualenv, install dependencies, start the API.
+# One-shot bootstrap: create the virtualenv, install dependencies, seed, start the modules.
 #
-#   bash run.sh          serve the API on http://127.0.0.1:8000
-#   bash run.sh train     install dev dependencies, retrain the model, redraw figures
+#   bash run.sh          three modules on three ports: model API :8000, database API :8001, web :8080
+#   bash run.sh single   the same three modules in one process on :8000 (what Render runs)
+#   bash run.sh seed     first training of the regression models + demo account (demo / demo123)
+#   bash run.sh train    install dev dependencies, retrain the SVM and regression models, redraw figures
+#   bash run.sh test     install dev dependencies and run the pytest suite
 #
 # Works in Git Bash / WSL on Windows and in any POSIX shell on Linux or macOS.
 
@@ -10,7 +13,6 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 MODE="${1:-serve}"
-PORT="${PORT:-8000}"
 VENV=".venv"
 
 say() { printf '\n\033[36m==> %s\033[0m\n' "$1"; }
@@ -43,41 +45,99 @@ else
   die "Môi trường ảo hỏng. Xoá thư mục .venv rồi chạy lại lệnh này."
 fi
 
-# --- 3. Install dependencies ---------------------------------------------------
-if [ "$MODE" = "train" ]; then
-  say "Cài thư viện huấn luyện (requirements-dev.txt)"
-  "$VPY" -m pip install --quiet --upgrade pip
-  "$VPY" -m pip install --quiet -r requirements-dev.txt
-  say "Huấn luyện lại mô hình"
-  "$VPY" train.py
-  say "Vẽ lại hình cho báo cáo"
-  "$VPY" figures.py
-  say "Xong. Chạy 'bash run.sh' để khởi động dịch vụ."
-  exit 0
+# --- 3. Configuration: .env with a generated JWT secret -------------------------
+if [ ! -f .env ]; then
+  say "Tạo .env từ .env.example (sinh JWT_SECRET ngẫu nhiên)"
+  SECRET="$("$VPY" -c 'import secrets; print(secrets.token_urlsafe(48))')"
+  sed "s|^JWT_SECRET=.*|JWT_SECRET=$SECRET|" .env.example > .env
 fi
+set -a
+# shellcheck disable=SC1091
+. ./.env
+set +a
 
-say "Cài thư viện cho API (requirements.txt)"
+# --- 4. Install dependencies ---------------------------------------------------
 "$VPY" -m pip install --quiet --upgrade pip
-"$VPY" -m pip install --quiet -r requirements.txt
+case "$MODE" in
+  train|test)
+    say "Cài thư viện huấn luyện và kiểm thử (requirements-dev.txt)"
+    "$VPY" -m pip install --quiet -r requirements-dev.txt ;;
+  *)
+    say "Cài thư viện cho 3 module (requirements.txt)"
+    "$VPY" -m pip install --quiet -r requirements.txt ;;
+esac
+
+case "$MODE" in
+  train)
+    say "Huấn luyện lại SVM phân loại"
+    "$VPY" train.py
+    say "Huấn luyện lại 5 mô hình hồi quy"
+    "$VPY" train_regression.py
+    say "Vẽ lại hình cho báo cáo"
+    "$VPY" figures.py
+    say "Xong. Chạy 'bash run.sh' để khởi động dịch vụ."
+    exit 0 ;;
+  test)
+    say "Chạy bộ kiểm thử pytest"
+    exec "$VPY" -m pytest ;;
+  seed)
+    "$VPY" seed.py
+    exit 0 ;;
+  serve|single) ;;
+  *) die "Chế độ không hợp lệ: $MODE (serve | single | seed | train | test)" ;;
+esac
 
 [ -f svm_model.pkl ] || die "Thiếu svm_model.pkl. Chạy 'bash run.sh train' để huấn luyện lại."
 
-# --- 4. Serve ------------------------------------------------------------------
-say "Khởi động API tại http://127.0.0.1:$PORT  (Ctrl+C để dừng)"
-printf '    Giao diện web : http://127.0.0.1:%s/\n' "$PORT"
-printf '    Swagger UI    : http://127.0.0.1:%s/docs\n\n' "$PORT"
+say "Seed: train lần đầu (nếu chưa có mô hình) + tài khoản demo"
+"$VPY" seed.py
 
-# Open the browser once the server is actually listening.
-("$VPY" - "$PORT" <<'PYEOF' &
-import socket, sys, time, webbrowser
-port = int(sys.argv[1])
-for _ in range(60):
-    with socket.socket() as s:
-        if s.connect_ex(("127.0.0.1", port)) == 0:
-            webbrowser.open(f"http://127.0.0.1:{port}/")
-            break
+# Open the browser (first URL) once every given URL's port is accepting connections.
+open_browser() {
+  ("$VPY" - "$@" <<'PYEOF' &
+import socket, sys, time, urllib.parse, webbrowser
+urls = sys.argv[1:]
+pending = {(urllib.parse.urlparse(u).hostname, urllib.parse.urlparse(u).port) for u in urls}
+for _ in range(120):
+    for addr in list(pending):
+        with socket.socket() as s:
+            if s.connect_ex(addr) == 0:
+                pending.discard(addr)
+    if not pending:
+        webbrowser.open(urls[0])
+        break
     time.sleep(0.5)
 PYEOF
-) >/dev/null 2>&1
+  ) >/dev/null 2>&1
+}
 
-exec "$VPY" -m uvicorn app:app --host 127.0.0.1 --port "$PORT" --reload
+# --- 5. Serve ------------------------------------------------------------------
+if [ "$MODE" = "single" ]; then
+  PORT="${PORT:-$MODEL_API_PORT}"
+  say "Chế độ gộp: cả 3 module trong một tiến trình tại http://127.0.0.1:$PORT  (Ctrl+C để dừng)"
+  open_browser "http://127.0.0.1:$PORT/"
+  SERVICE_MODE=single exec "$VPY" -m uvicorn app:app --host 127.0.0.1 --port "$PORT"
+fi
+
+export SERVICE_MODE=split
+PIDS=()
+start() {
+  "$VPY" -m uvicorn "$1" --host 127.0.0.1 --port "$2" &
+  PIDS+=("$!")
+}
+cleanup() {
+  trap - INT TERM EXIT
+  kill "${PIDS[@]}" 2>/dev/null || true
+}
+trap cleanup INT TERM EXIT
+
+say "Khởi động 3 module  (Ctrl+C để dừng cả ba)"
+printf '    API mô hình : http://127.0.0.1:%s/docs\n' "$MODEL_API_PORT"
+printf '    API CSDL    : http://127.0.0.1:%s/docs\n' "$DB_API_PORT"
+printf '    Giao diện   : http://127.0.0.1:%s/   (tài khoản demo / demo123)\n\n' "$WEB_PORT"
+
+start app:app "$MODEL_API_PORT"
+start db_api.main:app "$DB_API_PORT"
+start web.server:app "$WEB_PORT"
+open_browser "http://127.0.0.1:$WEB_PORT/" "http://127.0.0.1:$MODEL_API_PORT/" "http://127.0.0.1:$DB_API_PORT/"
+wait
