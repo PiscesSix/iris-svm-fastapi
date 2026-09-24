@@ -19,6 +19,7 @@ SPECIES = [
         # IMAGE_CREDITS.md keeps the Cyrillic original alongside this spelling.
         "source": "Wikimedia Commons - Denis Anisimov",
         "license": "Public domain",
+        "source_url": "https://commons.wikimedia.org/wiki/File:Irissetosa1.jpg",
     },
     {
         "class_id": 1,
@@ -33,6 +34,7 @@ SPECIES = [
         "alt_text": "Hình minh hoạ hoa Iris versicolor",
         "source": "Wikimedia Commons — D. Gordon E. Robertson",
         "license": "CC BY-SA 3.0",
+        "source_url": "https://commons.wikimedia.org/wiki/File:Blue_Flag,_Ottawa.jpg",
     },
     {
         "class_id": 2,
@@ -47,6 +49,7 @@ SPECIES = [
         "alt_text": "Hình minh hoạ hoa Iris virginica",
         "source": "Wikimedia Commons — Frank Mayfield",
         "license": "CC BY-SA 2.0",
+        "source_url": "https://commons.wikimedia.org/wiki/File:Iris_virginica.jpg",
     },
 ]
 

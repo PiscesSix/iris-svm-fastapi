@@ -116,6 +116,7 @@ class PredictionOutput(BaseModel):
     alt_text: str
     source: str
     license: str
+    source_url: str = ""
 
 
 def get_model():
@@ -196,6 +197,7 @@ def predict(data: IrisInput):
         alt_text=info["alt_text"],
         source=info["source"],
         license=info["license"],
+        source_url=info.get("source_url", ""),
     )
 
 
