@@ -218,6 +218,7 @@ iris-fastapi/
 ├── train_regression.py   # huấn luyện 5 mô hình hồi quy
 ├── data_loader.py        # nạp dữ liệu Kaggle (kagglehub), fallback sklearn
 ├── figures.py            # sinh 8 hình cho báo cáo
+├── figures_regression.py # sinh 3 hình hồi quy cho báo cáo (từ regression_metrics.json)
 ├── species.py            # thông tin 3 loài + nguồn ảnh
 ├── settings.py           # đọc .env / biến môi trường
 ├── security.py           # bcrypt + JWT
@@ -242,7 +243,8 @@ iris-fastapi/
 └── run.ps1               # bản tương đương cho PowerShell
 ```
 
-Hình cho tài liệu LaTeX (`figures/`) chỉ giữ ở máy và tái tạo được bằng `python figures.py`.
+Hình cho tài liệu LaTeX (`figures/`) chỉ giữ ở máy và tái tạo được bằng `python figures.py`
+và `python figures_regression.py`.
 
 ## Ghi chú kỹ thuật
 

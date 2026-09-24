@@ -66,7 +66,7 @@ switch ($Mode) {
     'train' {
         Say 'Huan luyen lai SVM phan loai'; & $vpy train.py
         Say 'Huan luyen lai 5 mo hinh hoi quy'; & $vpy train_regression.py
-        Say 'Ve lai hinh cho bao cao'; & $vpy figures.py
+        Say 'Ve lai hinh cho bao cao'; & $vpy figures.py; & $vpy figures_regression.py
         Say "Xong. Chay '.\run.ps1' de khoi dong dich vu."
         exit 0
     }

@@ -75,6 +75,7 @@ case "$MODE" in
     "$VPY" train_regression.py
     say "Vẽ lại hình cho báo cáo"
     "$VPY" figures.py
+    "$VPY" figures_regression.py
     say "Xong. Chạy 'bash run.sh' để khởi động dịch vụ."
     exit 0 ;;
   test)
