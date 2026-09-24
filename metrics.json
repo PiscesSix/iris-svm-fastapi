@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-15T14:22:32+00:00",
+  "generated_at": "2026-09-24T10:08:52+00:00",
   "environment": {
     "python": "3.12.10",
     "scikit_learn": "1.9.1",
@@ -136,7 +136,7 @@
     ],
     "n_support_total": 56,
     "n_configs_searched": 64,
-    "search_seconds": 5.63,
+    "search_seconds": 5.0,
     "deployed_estimator": "Pipeline(StandardScaler + CalibratedClassifierCV(SVC, sigmoid))",
     "deployed_accuracy_test": 0.9333,
     "deployed_agreement_with_svc": 1.0
@@ -226,7 +226,7 @@
       "cv_std": 0.0167,
       "test_accuracy": 0.9667,
       "n_support_vectors": 47,
-      "fit_seconds": 0.013
+      "fit_seconds": 0.016
     },
     {
       "kernel": "poly",

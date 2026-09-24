@@ -1,5 +1,5 @@
 {
-  "trained_at": "2026-09-24T09:25:49+00:00",
+  "trained_at": "2026-09-24T10:08:59+00:00",
   "environment": {
     "scikit_learn": "1.9.1",
     "numpy": "2.5.3"
@@ -48,9 +48,9 @@
       "rmse": 0.1826,
       "cv_r2_mean": 0.9524,
       "cv_r2_std": 0.0087,
-      "train_seconds": 0.00072,
-      "tuning_seconds": 0.032,
-      "predict_ms_per_sample": 0.00419,
+      "train_seconds": 0.00071,
+      "tuning_seconds": 0.016,
+      "predict_ms_per_sample": 0.00434,
       "n_coefficients": 5,
       "n_nonzero_coef": 5,
       "best_params": {},
@@ -82,9 +82,9 @@
       "rmse": 0.1734,
       "cv_r2_mean": 0.9478,
       "cv_r2_std": 0.008,
-      "train_seconds": 0.00095,
-      "tuning_seconds": 0.045,
-      "predict_ms_per_sample": 0.0067,
+      "train_seconds": 0.00106,
+      "tuning_seconds": 0.041,
+      "predict_ms_per_sample": 0.00751,
       "n_coefficients": 20,
       "n_nonzero_coef": 20,
       "best_params": {
@@ -94,12 +94,12 @@
       "predict_speed": {
         "tier": "medium",
         "label": "Trung bình",
-        "ratio_to_fastest": 1.6
+        "ratio_to_fastest": 1.73
       },
       "train_speed": {
         "tier": "fast",
         "label": "Nhanh",
-        "ratio_to_fastest": 1.32
+        "ratio_to_fastest": 1.49
       }
     },
     {
@@ -111,9 +111,9 @@
       "rmse": 0.1825,
       "cv_r2_mean": 0.9527,
       "cv_r2_std": 0.0092,
-      "train_seconds": 0.00089,
-      "tuning_seconds": 0.112,
-      "predict_ms_per_sample": 0.00432,
+      "train_seconds": 0.00094,
+      "tuning_seconds": 0.111,
+      "predict_ms_per_sample": 0.00491,
       "n_coefficients": 5,
       "n_nonzero_coef": 5,
       "best_params": {
@@ -130,12 +130,12 @@
       "predict_speed": {
         "tier": "fast",
         "label": "Nhanh",
-        "ratio_to_fastest": 1.03
+        "ratio_to_fastest": 1.13
       },
       "train_speed": {
         "tier": "fast",
         "label": "Nhanh",
-        "ratio_to_fastest": 1.24
+        "ratio_to_fastest": 1.32
       }
     },
     {
@@ -147,8 +147,8 @@
       "rmse": 0.1827,
       "cv_r2_mean": 0.9525,
       "cv_r2_std": 0.0093,
-      "train_seconds": 0.00074,
-      "tuning_seconds": 0.089,
+      "train_seconds": 0.00073,
+      "tuning_seconds": 0.091,
       "predict_ms_per_sample": 0.00439,
       "n_coefficients": 5,
       "n_nonzero_coef": 5,
@@ -166,7 +166,7 @@
       "predict_speed": {
         "tier": "fast",
         "label": "Nhanh",
-        "ratio_to_fastest": 1.05
+        "ratio_to_fastest": 1.01
       },
       "train_speed": {
         "tier": "fast",
@@ -184,8 +184,8 @@
       "cv_r2_mean": 0.9526,
       "cv_r2_std": 0.0094,
       "train_seconds": 0.00075,
-      "tuning_seconds": 0.431,
-      "predict_ms_per_sample": 0.00431,
+      "tuning_seconds": 0.436,
+      "predict_ms_per_sample": 0.00433,
       "n_coefficients": 5,
       "n_nonzero_coef": 5,
       "best_params": {
@@ -203,12 +203,12 @@
       "predict_speed": {
         "tier": "fast",
         "label": "Nhanh",
-        "ratio_to_fastest": 1.03
+        "ratio_to_fastest": 1.0
       },
       "train_speed": {
         "tier": "fast",
         "label": "Nhanh",
-        "ratio_to_fastest": 1.04
+        "ratio_to_fastest": 1.06
       }
     }
   ],
