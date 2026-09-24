@@ -7,3 +7,8 @@ __pycache__/
 
 # Hình cho báo cáo LaTeX — chỉ giữ ở máy, tái tạo bằng: python figures.py
 figures/
+
+# Cấu hình bí mật và CSDL cục bộ — tạo từ .env.example, seed lại bằng: python seed.py
+.env
+data/*.db
+data/*.db-journal
