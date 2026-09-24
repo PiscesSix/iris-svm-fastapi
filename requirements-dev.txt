@@ -4,3 +4,6 @@ pandas==3.0.5
 matplotlib==3.11.2
 seaborn==0.13.2
 kagglehub==1.0.2
+# Kiểm thử tự động (pytest + TestClient).
+pytest==9.1.1
+httpx==0.28.1
