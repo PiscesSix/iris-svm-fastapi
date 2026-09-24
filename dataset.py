@@ -27,7 +27,8 @@ _RANK_WORDS = {
 
 
 def _fmt(value: float, digits: int = 2) -> str:
-    return f"{value:.{digits}f}"
+    """Vietnamese number format: comma as the decimal separator."""
+    return f"{value:.{digits}f}".replace(".", ",")
 
 
 @lru_cache(maxsize=1)

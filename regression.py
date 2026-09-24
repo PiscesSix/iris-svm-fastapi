@@ -345,9 +345,11 @@ def load() -> tuple[dict, dict]:
 def predict_one(pipe: Pipeline, features: np.ndarray, repeats: int = 1) -> tuple[float, float]:
     """Return (prediction, runtime in ms) measured with perf_counter.
 
-    With repeats > 1 the runtime is the median of that many calls, which damps the
-    noise of sub-millisecond timings.
+    With repeats > 1 the runtime is the median of that many calls, after one untimed
+    warm-up call, which damps the noise of sub-millisecond timings.
     """
+    if repeats > 1:
+        pipe.predict(features)
     timings = []
     for _ in range(max(1, repeats)):
         started = time.perf_counter()
