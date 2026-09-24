@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import settings
-from db_api import auth
+from db_api import auth, history, runs
 from db_api.db import get_conn
 
 app = FastAPI(
@@ -38,3 +38,5 @@ def health(conn=Depends(get_conn)):
 
 
 app.include_router(auth.router)
+app.include_router(history.router)
+app.include_router(runs.router)
