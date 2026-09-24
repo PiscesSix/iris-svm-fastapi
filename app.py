@@ -19,6 +19,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+import regression_api
+import settings
 import species as sp
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -45,6 +47,7 @@ async def lifespan(app: FastAPI):
     if METRICS_PATH.exists():
         state["metrics"] = json.loads(METRICS_PATH.read_text(encoding="utf-8"))
 
+    regression_api.load()
     yield
     state["model"] = None
 
@@ -61,7 +64,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.csv_list("MODEL_API_CORS_ORIGINS", "*"),
     allow_credentials=False,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
@@ -121,6 +124,7 @@ def health():
         "status": "healthy" if healthy else "unhealthy",
         "model_loaded": healthy,
         "model_file": MODEL_PATH.name,
+        "regression_loaded": regression_api.state["models"] is not None,
         "uptime_seconds": round(time.time() - state["loaded_at"], 1) if state.get("loaded_at") else None,
     }
 
@@ -171,3 +175,7 @@ def predict(data: IrisInput):
         source=info["source"],
         license=info["license"],
     )
+
+
+app.include_router(regression_api.router)
+
