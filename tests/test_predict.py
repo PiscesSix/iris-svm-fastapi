@@ -74,6 +74,14 @@ def test_dataset_summary_from_csv(client):
     assert abs(sum(setosa["mean_shares"].values()) - 100) < 0.5
 
 
+def test_dataset_pca_projects_every_sample(client):
+    body = client.get("/dataset/pca").json()
+    assert len(body["points"]) == 150
+    assert {p["species"] for p in body["points"]} == set(reg.SPECIES)
+    ratios = body["explained_variance_ratio"]
+    assert len(ratios) == 2 and ratios[0] >= ratios[1] > 0 and sum(ratios) <= 1
+
+
 def test_train_requires_login(client):
     assert client.post("/regression/train").status_code == 401
 

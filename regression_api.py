@@ -141,3 +141,9 @@ def regression_diagnostics(model: ModelKey = Query("ridge")):
 def dataset_summary():
     """Per-species statistics computed from data/Iris.csv (overview page)."""
     return dataset.summary()
+
+
+@router.get("/dataset/pca", tags=["Dữ liệu"])
+def dataset_pca():
+    """PCA 2D of the 150 standardised samples (advanced analysis page)."""
+    return dataset.pca()

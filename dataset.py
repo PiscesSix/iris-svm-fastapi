@@ -104,3 +104,30 @@ def summary() -> dict:
         "feature_labels": FEATURE_LABELS,
         "species": out,
     }
+
+
+@lru_cache(maxsize=1)
+def pca() -> dict:
+    """Project the four standardised measurements onto two principal components."""
+    from sklearn.decomposition import PCA
+    from sklearn.preprocessing import StandardScaler
+
+    data = reg.load_dataset()
+    m, species = data["measurements"], data["species"]
+    model = PCA(n_components=2)
+    coords = model.fit_transform(StandardScaler().fit_transform(m))
+    return {
+        "source": "Kaggle uciml/iris (data/Iris.csv)",
+        "n_samples": int(len(species)),
+        "features": reg.ALL_MEASUREMENTS,
+        "explained_variance_ratio": [round(float(r), 4) for r in model.explained_variance_ratio_],
+        "points": [
+            {
+                "species": str(s),
+                "pc1": round(float(c[0]), 4),
+                "pc2": round(float(c[1]), 4),
+                "measurements": [float(v) for v in row],
+            }
+            for s, c, row in zip(species, coords, m)
+        ],
+    }

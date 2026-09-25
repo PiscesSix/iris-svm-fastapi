@@ -1,189 +1,268 @@
-// Advanced analysis (highlight feature): regularization paths and residual diagnostics.
+// Advanced analysis (highlight feature): PCA 2D of the dataset, the SVM confusion matrix
+// on the test set and the class balance. Every remark is generated from the numbers.
 import { modelApi } from "../api.js";
 import { chart } from "../charts.js";
 import { icon } from "../icons.js";
-import { errorState, esc, FEATURE_SHORT, MODEL_COLORS, MODEL_KEYS, num, onClick, PALETTE, skeleton } from "../ui.js";
+import { cap, errorState, esc, num, onClick, skeleton, SPECIES_COLORS, SPECIES_KEYS } from "../ui.js";
 
-const REGULARIZED = ["ridge", "lasso", "elasticnet"];
-const LABELS = { linear: "Linear Regression", polynomial: "Polynomial Regression", ridge: "Ridge", lasso: "Lasso", elasticnet: "ElasticNet" };
+// A second encoding next to colour, so the species stay apart for colour-blind readers.
+const POINT_STYLE = { setosa: "circle", versicolor: "triangle", virginica: "rectRot" };
+const INK = "#1E2A5A";
 
-const SUPERSCRIPT = { "-": "⁻", 0: "⁰", 1: "¹", 2: "²", 3: "³", 4: "⁴", 5: "⁵", 6: "⁶", 7: "⁷", 8: "⁸", 9: "⁹" };
+const pct = (part, whole) => (whole ? (part / whole) * 100 : 0);
 
-// Label only the powers of ten on the log axis, e.g. 10⁻⁴.
-const axisLog = v => {
-  const p = Math.round(Math.log10(v) * 1e6) / 1e6;
-  return Number.isInteger(p) ? `10${String(p).split("").map(c => SUPERSCRIPT[c]).join("")}` : "";
+function insight(sentences) {
+  return `<div class="insight">${icon("lightbulb", 18)}<p>${sentences.filter(Boolean).join(" ")}</p></div>`;
+}
+
+// Draws each bar's value just above it (Chart.js has no built-in data labels).
+const valueLabels = {
+  id: "valueLabels",
+  afterDatasetsDraw(c) {
+    const g = c.ctx;
+    g.save();
+    g.font = '600 13px "Be Vietnam Pro", system-ui, sans-serif';
+    g.fillStyle = INK;
+    g.textAlign = "center";
+    g.textBaseline = "bottom";
+    c.getDatasetMeta(0).data.forEach((bar, i) => g.fillText(String(c.data.datasets[0].data[i]), bar.x, bar.y - 6));
+    g.restore();
+  },
 };
+
+// ------------------------------------------------------------------ PCA
+
+function pcaRemark(pca) {
+  const [r1, r2] = pca.explained_variance_ratio;
+  const total = (r1 + r2) * 100;
+  const kept = total >= 90 ? "gần như toàn bộ" : total >= 70 ? "phần lớn" : "chỉ một phần";
+  const sentences = [`PC1 và PC2 giữ lại ${num(total, 1)}% phương sai của 4 đặc trưng đã chuẩn hoá (PC1 ${num(r1 * 100, 1)}%, PC2 ${num(r2 * 100, 1)}%),
+    nên hình 2D thể hiện ${kept} cấu trúc dữ liệu.`];
+
+  const pc1 = Object.fromEntries(SPECIES_KEYS.map(s => [s, pca.points.filter(p => p.species === s).map(p => p.pc1)]));
+  const span = s => [Math.min(...pc1[s]), Math.max(...pc1[s])];
+  const pairs = [];
+  SPECIES_KEYS.forEach((a, i) => SPECIES_KEYS.slice(i + 1).forEach(b => {
+    const [a0, a1] = span(a);
+    const [b0, b1] = span(b);
+    const lo = Math.max(a0, b0);
+    const hi = Math.min(a1, b1);
+    const inside = lo <= hi ? [...pc1[a], ...pc1[b]].filter(x => x >= lo && x <= hi).length : 0;
+    pairs.push({ a, b, lo, hi, gap: lo - hi, inside, total: pc1[a].length + pc1[b].length });
+  }));
+
+  SPECIES_KEYS.forEach(s => {
+    const own = pairs.filter(p => p.a === s || p.b === s);
+    if (own.every(p => p.gap > 0)) {
+      const gap = Math.min(...own.map(p => p.gap));
+      sentences.push(`${cap(s)} tách biệt rõ: trên trục PC1, cả ${pc1[s].length} điểm nằm riêng một cụm, cách loài gần nhất ${num(gap, 2)} đơn vị.`);
+    }
+  });
+  pairs.filter(p => p.gap <= 0).forEach(p => {
+    sentences.push(`${cap(p.a)} và ${cap(p.b)} chồng lấn một phần: ${p.inside}/${p.total} điểm của hai loài nằm trong đoạn PC1 chung
+      [${num(p.lo, 2)}; ${num(p.hi, 2)}] — đây là vùng dễ nhầm lẫn khi phân loại.`);
+  });
+  return insight(sentences);
+}
+
+function drawPca(card, pca) {
+  const [r1, r2] = pca.explained_variance_ratio;
+  const datasets = SPECIES_KEYS.map(s => ({
+    label: cap(s),
+    data: pca.points.filter(p => p.species === s).map(p => ({ x: p.pc1, y: p.pc2, m: p.measurements })),
+    pointStyle: POINT_STYLE[s],
+    backgroundColor: SPECIES_COLORS[s] + "D9",
+    borderColor: "#fff",
+    borderWidth: 1,
+    pointRadius: 5,
+    pointHoverRadius: 7,
+  }));
+  card.innerHTML = `
+    <div class="card-head"><div><h2>PCA 2D</h2>
+      <p class="sub">${pca.n_samples} mẫu, 4 đặc trưng chuẩn hoá (StandardScaler) rồi chiếu xuống 2 thành phần chính</p></div></div>
+    <div class="chart-box tall"><canvas id="pcaChart" role="img"
+      aria-label="Biểu đồ phân tán PCA 2D của ${pca.n_samples} mẫu, tô màu theo loài"></canvas></div>
+    ${pcaRemark(pca)}`;
+  chart(card.querySelector("#pcaChart"), {
+    type: "scatter",
+    data: { datasets },
+    options: {
+      scales: {
+        x: { title: { display: true, text: `PC1 (${num(r1 * 100, 1)}% phương sai)` }, ticks: { callback: v => num(v, 1) } },
+        y: { title: { display: true, text: `PC2 (${num(r2 * 100, 1)}% phương sai)` }, ticks: { callback: v => num(v, 1) } },
+      },
+      plugins: {
+        legend: { position: "bottom" },
+        tooltip: {
+          callbacks: {
+            label: c => ` ${c.dataset.label} · PC1 ${num(c.raw.x, 2)}, PC2 ${num(c.raw.y, 2)}`,
+            afterLabel: c => ` Số đo (cm): ${c.raw.m.map(v => num(v, 1)).join(" / ")}`,
+          },
+        },
+      },
+    },
+  });
+}
+
+// ------------------------------------------------------------------ confusion matrix
+
+function matrixRemark(labels, cm, accuracy) {
+  const total = cm.flat().reduce((a, v) => a + v, 0);
+  const correct = labels.reduce((a, _, i) => a + cm[i][i], 0);
+  const wrong = total - correct;
+  const sentences = [`Trên ${total} mẫu test, SVM phân loại đúng ${correct} mẫu (accuracy ${num(accuracy * 100, 2)}%) và sai ${wrong} mẫu.`];
+
+  const errors = [];
+  labels.forEach((a, i) => labels.forEach((b, j) => {
+    if (i !== j && cm[i][j] > 0) errors.push(`${cm[i][j]} mẫu ${cap(a)} bị dự đoán thành ${cap(b)}`);
+  }));
+  if (errors.length) sentences.push(`Nhầm lẫn: ${errors.join("; ")}.`);
+
+  const clean = labels.filter((_, i) => labels.every((__, j) => i === j || (cm[i][j] === 0 && cm[j][i] === 0)));
+  if (clean.length && wrong) {
+    sentences.push(`${clean.map(cap).join(", ")} không bị nhầm lần nào — mọi lỗi đều nằm giữa ${labels.filter(l => !clean.includes(l)).map(cap).join(" và ")}.`);
+  } else if (!wrong) {
+    sentences.push("Không có mẫu nào bị phân loại sai.");
+  }
+  return insight(sentences);
+}
+
+function drawMatrix(card, metrics) {
+  const { labels, confusion_matrix: cm, accuracy_test: accuracy } = metrics.performance;
+  const params = Object.entries(metrics.model.best_params || {}).map(([k, v]) => `${k}=${v}`).join(", ");
+  const rows = labels.map((actual, i) => {
+    const rowTotal = cm[i].reduce((a, v) => a + v, 0);
+    const cells = labels.map((predicted, j) => {
+      const v = cm[i][j];
+      const cls = i === j ? "diag" : v > 0 ? "miss" : "";
+      const title = `Thực tế ${cap(actual)} → dự đoán ${cap(predicted)}: ${v} mẫu`;
+      return `<td class="${cls}" title="${esc(title)}">${v}<small>${num(pct(v, rowTotal), 0)}% hàng</small></td>`;
+    }).join("");
+    const head = i === 0 ? `<th class="axis axis-y" rowspan="${labels.length}" scope="rowgroup"><span>Thực tế</span></th>` : "";
+    return `<tr>${head}<th class="row-h" scope="row"><span class="swatch" style="background:${SPECIES_COLORS[actual]}"></span>${esc(cap(actual))}</th>${cells}</tr>`;
+  }).join("");
+
+  card.innerHTML = `
+    <div class="card-head"><div><h2>Confusion Matrix</h2>
+      <p class="sub">SVM (${esc(params)}) trên ${metrics.data.test_size} mẫu test · hàng = loài thực tế, cột = loài dự đoán</p></div></div>
+    <div class="table-wrap">
+      <table class="cm">
+        <caption class="sr-only">Ma trận nhầm lẫn của SVM trên tập test</caption>
+        <colgroup><col class="c-axis"><col class="c-row">${labels.map(() => "<col>").join("")}</colgroup>
+        <thead>
+          <tr><th></th><th></th><th class="axis" colspan="${labels.length}" scope="colgroup">Dự đoán</th></tr>
+          <tr><th></th><th></th>${labels.map(l => `<th scope="col"><span class="swatch" style="background:${SPECIES_COLORS[l]}"></span>${esc(cap(l))}</th>`).join("")}</tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <p class="caption">Ô tím = dự đoán đúng (đường chéo), ô đỏ nhạt = dự đoán sai. Tỉ lệ nhỏ trong ô tính theo tổng của hàng (recall của loài đó).</p>
+    ${matrixRemark(labels, cm, accuracy)}`;
+}
+
+// ------------------------------------------------------------------ class balance
+
+function balanceRemark(counts, n, metrics) {
+  const values = SPECIES_KEYS.map(s => counts[s]);
+  const lo = Math.min(...values);
+  const hi = Math.max(...values);
+  const sentences = [];
+  if (lo === hi) {
+    sentences.push(`Bộ dữ liệu cân bằng tuyệt đối: mỗi loài ${lo} mẫu (${num(pct(lo, n), 1)}% trong ${n} mẫu).`);
+    sentences.push(`Vì không có lớp nào áp đảo, accuracy là thước đo phù hợp — đoán bừa chỉ đạt khoảng ${num(100 / values.length, 1)}%,
+      và mô hình không thể đạt accuracy cao chỉ nhờ luôn đoán lớp đông nhất.`);
+  } else {
+    sentences.push(`Các lớp không cân bằng: lớp đông nhất gấp ${num(hi / lo, 2)} lần lớp ít nhất,
+      nên cần xem thêm precision, recall và F1 từng lớp thay vì chỉ accuracy.`);
+  }
+  const report = metrics && metrics.performance.classification_report;
+  if (report) {
+    const support = SPECIES_KEYS.map(s => report[s] && report[s].support);
+    if (support.every(v => v !== undefined)) {
+      sentences.push(`Tập test chia theo stratify nên giữ đúng tỉ lệ này (${support.map(v => num(v, 0)).join(" / ")} mẫu).`);
+    }
+  }
+  return insight(sentences);
+}
+
+function drawBalance(card, summary, metrics) {
+  const counts = Object.fromEntries(summary.species.map(s => [s.species, s.count]));
+  const values = SPECIES_KEYS.map(s => counts[s]);
+  card.innerHTML = `
+    <div class="card-head"><div><h2>Phân bố số lượng 3 loài</h2>
+      <p class="sub">Đếm trực tiếp từ ${esc(summary.source)} · ${summary.n_samples} mẫu</p></div></div>
+    <div class="chart-box short"><canvas id="balanceChart" role="img"
+      aria-label="Biểu đồ cột số mẫu mỗi loài: ${SPECIES_KEYS.map(s => `${cap(s)} ${counts[s]}`).join(", ")}"></canvas></div>
+    ${balanceRemark(counts, summary.n_samples, metrics)}`;
+  chart(card.querySelector("#balanceChart"), {
+    type: "bar",
+    data: {
+      labels: SPECIES_KEYS.map(cap),
+      datasets: [{
+        label: "Số mẫu", data: values, backgroundColor: SPECIES_KEYS.map(s => SPECIES_COLORS[s]),
+        borderRadius: 4, borderSkipped: "bottom", barPercentage: 0.5, maxBarThickness: 120,
+      }],
+    },
+    options: {
+      layout: { padding: { top: 22 } },
+      scales: {
+        y: { beginAtZero: true, suggestedMax: Math.max(...values) * 1.1, title: { display: true, text: "Số mẫu" }, ticks: { precision: 0 } },
+        x: { grid: { display: false } },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => ` ${c.raw} mẫu (${num(pct(c.raw, summary.n_samples), 1)}%)` } },
+      },
+    },
+    plugins: [valueLabels],
+  });
+}
+
+// ------------------------------------------------------------------ page
 
 export default {
   title: "Phân tích nâng cao",
-  subtitle: "Regularization path của Ridge / Lasso / ElasticNet và chẩn đoán phần dư của 5 mô hình",
-  icon: "chart-spline",
+  subtitle: "PCA 2D, ma trận nhầm lẫn của SVM và phân bố số lượng 3 loài trong bộ dữ liệu Iris",
+  icon: "chart-scatter",
 
-  async render(view, ctx) {
-    view.innerHTML = `<div class="stack"><div class="card">${skeleton({ block: true, lines: 2 })}</div><div class="card">${skeleton({ block: true, lines: 2 })}</div></div>`;
-    let report;
-    try {
-      report = await modelApi("/regression/metrics");
-    } catch (err) {
-      if (!ctx.alive()) return;
-      view.innerHTML = `<div class="card">${errorState(err.message, "retry")}</div>`;
-      onClick(view, "#retry", () => this.render(view, ctx));
-      return;
-    }
-    if (!ctx.alive()) return;
-    const byKey = Object.fromEntries(report.models.map(m => [m.model, m]));
-
+  render(view, ctx) {
     view.innerHTML = `
-      <div class="stack">
-        <section class="card tinted highlight-banner">
-          ${icon("sparkles", 22)}
-          <div><h2>Điểm nổi bật · Nhìn vào bên trong mô hình</h2>
-            <p>Regularization path cho thấy từng hệ số co lại thế nào khi tăng α; biểu đồ chẩn đoán cho thấy mô hình sai ở đâu trên
-              ${report.data.test_size} mẫu test. Tất cả tính từ lần train lúc ${new Date(report.trained_at).toLocaleString("vi-VN")}.</p></div>
-        </section>
+      <section class="stack" aria-labelledby="advTitle">
+        <h2 class="section-title" id="advTitle" style="margin-bottom:-6px">Phân tích nâng cao</h2>
+        <div class="grid cols-2">
+          <section class="card" id="pcaCard">${skeleton({ block: true, lines: 3 })}</section>
+          <section class="card" id="cmCard">${skeleton({ block: true, lines: 3 })}</section>
+        </div>
+        <section class="card" id="balanceCard">${skeleton({ block: true, lines: 2 })}</section>
+      </section>`;
 
-        <section class="card">
-          <div class="card-head">
-            <div><h2>Regularization path</h2><p class="sub">Hệ số (trên đặc trưng đã chuẩn hoá) theo α, trục α thang log</p></div>
-            <div class="segmented" id="pathSeg">
-              ${REGULARIZED.map((k, i) => `<button type="button" data-model="${k}" class="${i === 1 ? "active" : ""}">${LABELS[k]}</button>`).join("")}
-            </div>
-          </div>
-          <div class="grid analysis-layout">
-            <div>
-              <div class="chart-box tall"><canvas id="pathChart" role="img" aria-label="Đường hệ số theo alpha"></canvas></div>
-              <p class="sub" id="pathNote"></p>
-            </div>
-            <div class="stack">
-              <div class="card tinted remark" style="box-shadow:none">
-                ${icon("lightbulb", 22)}
-                <div><h3>Vì sao Lasso ép hệ số về 0?</h3>
-                  <p>Lasso phạt tổng trị tuyệt đối <b>α·Σ|wⱼ|</b> (chuẩn L1). Đạo hàm của |w| không đổi (±1) dù w nhỏ đến đâu,
-                  nên lời giải có dạng <i>ngưỡng mềm</i>: w = sign(z)·max(|z| − α, 0) — hệ số nào có tín hiệu |z| nhỏ hơn α bị cắt đúng bằng 0.
-                  Về hình học, miền ràng buộc L1 là hình thoi có các đỉnh nằm trên trục, nên đường đồng mức của sai số thường chạm vào đỉnh
-                  (một số toạ độ bằng 0). Ridge phạt <b>α·Σwⱼ²</b>: đạo hàm 2αw tiến về 0 cùng w nên hệ số chỉ nhỏ dần, không bao giờ bằng 0.
-                  ElasticNet trộn cả hai theo l1_ratio.</p></div>
-              </div>
-              <div class="table-wrap" id="coefTable"></div>
-            </div>
-          </div>
-        </section>
+    const pcaCard = view.querySelector("#pcaCard");
+    const cmCard = view.querySelector("#cmCard");
+    const balanceCard = view.querySelector("#balanceCard");
+    const metricsReq = modelApi("/metrics");
+    metricsReq.catch(() => { /* each card reports its own error */ });
 
-        <section class="card">
-          <div class="card-head">
-            <div><h2>Chẩn đoán mô hình</h2><p class="sub" id="diagSub">Tập test</p></div>
-            <label class="field" style="min-width:220px">Chọn mô hình
-              <select class="input" id="diagModel">
-                ${MODEL_KEYS.map(k => `<option value="${k}" ${k === report.best_model ? "selected" : ""}>${LABELS[k]}${k === report.best_model ? " (tốt nhất)" : ""}</option>`).join("")}
-              </select></label>
-          </div>
-          <div class="grid cols-2">
-            <div><h3 style="font-size:14px;color:var(--title);margin:0 0 6px">Actual vs Predicted</h3>
-              <div class="chart-box"><canvas id="avpChart" role="img" aria-label="Giá trị thật so với dự đoán"></canvas></div></div>
-            <div><h3 style="font-size:14px;color:var(--title);margin:0 0 6px">Phần dư (thật − dự đoán)</h3>
-              <div class="chart-box"><canvas id="resChart" role="img" aria-label="Phần dư theo giá trị dự đoán"></canvas></div></div>
-          </div>
-          <p class="caption">Điểm càng sát đường chéo y = x càng tốt; phần dư nên rải đều quanh 0, không có hình dạng (nếu có dạng cong là mô hình bỏ sót quan hệ phi tuyến).</p>
-        </section>
-      </div>`;
-
-    const loadPath = async key => {
-      const note = view.querySelector("#pathNote");
+    const load = async (card, id, work) => {
       try {
-        const path = await modelApi(`/regression/regularization-path?model=${key}`);
-        if (!ctx.alive()) return;
-        const bestAlpha = byKey[key].best_params.alpha;
-        const datasets = path.features.map((f, i) => ({
-          label: FEATURE_SHORT[f] || f,
-          data: path.alphas.map((a, j) => ({ x: a, y: path.coefficients[f][j] })),
-          borderColor: PALETTE[i], backgroundColor: PALETTE[i], showLine: true, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2,
-        }));
-        const ys = path.features.flatMap(f => path.coefficients[f]);
-        datasets.push({
-          label: `α tốt nhất (${num(bestAlpha, 4)})`,
-          data: [{ x: bestAlpha, y: Math.min(...ys) }, { x: bestAlpha, y: Math.max(...ys) }],
-          borderColor: "#1E2A5A", borderDash: [5, 4], borderWidth: 1.5, showLine: true, pointRadius: 0,
-        });
-        chart(view.querySelector("#pathChart"), {
-          type: "scatter",
-          data: { datasets },
-          options: {
-            interaction: { mode: "nearest", intersect: false },
-            scales: {
-              x: { type: "logarithmic", title: { display: true, text: "α (thang log)" }, ticks: { callback: axisLog } },
-              y: { title: { display: true, text: "Hệ số" } },
-            },
-            plugins: {
-              legend: { position: "bottom" },
-              tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${num(c.parsed.y, 4)} (α = ${num(c.parsed.x, 4)})` } },
-            },
-          },
-        });
-        note.textContent = `${path.label}${path.l1_ratio ? ` (l1_ratio = ${path.l1_ratio})` : ""}: số hệ số khác 0 giảm từ ${path.n_nonzero[0]} (α = ${num(path.alphas[0], 4)}) `
-          + `xuống ${path.n_nonzero[path.n_nonzero.length - 1]} (α = ${num(path.alphas[path.alphas.length - 1], 0)}). `
-          + `Tại α tốt nhất theo GridSearchCV còn ${byKey[key].n_nonzero_coef}/${byKey[key].n_coefficients} hệ số khác 0.`;
-        const coefs = byKey[key].coefficients || {};
-        view.querySelector("#coefTable").innerHTML = `
-          <table class="data"><caption class="sr-only">Hệ số tại alpha tốt nhất</caption>
-            <thead><tr><th>Hệ số của ${esc(path.label)} tại α tốt nhất</th><th class="num">Giá trị</th></tr></thead>
-            <tbody>${path.features.map((f, j) => `<tr><td><span class="swatch" style="background:${PALETTE[j]}"></span>${esc(FEATURE_SHORT[f] || f)}</td>
-              <td class="num">${num(coefs[f], 4)}</td></tr>`).join("")}</tbody></table>`;
+        await work();
       } catch (err) {
-        if (ctx.alive()) note.innerHTML = `<span style="color:var(--bad)">${esc(err.message)}</span>`;
+        if (!ctx.alive()) return;
+        card.innerHTML = errorState(err.message, id);
+        onClick(card, `#${id}`, () => this.render(view, ctx));
       }
     };
 
-    const loadDiag = async key => {
-      try {
-        const d = await modelApi(`/regression/diagnostics?model=${key}`);
-        if (!ctx.alive()) return;
-        view.querySelector("#diagSub").textContent =
-          `${d.label} · ${d.actual.length} mẫu test · R² = ${num(d.metrics.r2, 4)} · MAE = ${num(d.metrics.mae, 4)} cm · RMSE = ${num(d.metrics.rmse, 4)} cm`;
-        const color = MODEL_COLORS[key];
-        const species = d.inputs.map(x => x.species);
-        const lo = Math.min(...d.actual, ...d.predicted) - 0.1;
-        const hi = Math.max(...d.actual, ...d.predicted) + 0.1;
-        const tip = i => `${species[i]} · thật ${num(d.actual[i], 2)} / dự đoán ${num(d.predicted[i], 3)} cm`;
-        chart(view.querySelector("#avpChart"), {
-          type: "scatter",
-          data: {
-            datasets: [
-              { label: "Mẫu test", data: d.actual.map((a, i) => ({ x: a, y: d.predicted[i] })), backgroundColor: color + "CC", borderColor: "#fff", borderWidth: 1, pointRadius: 5, pointHoverRadius: 7 },
-              { label: "y = x (dự đoán hoàn hảo)", data: [{ x: lo, y: lo }, { x: hi, y: hi }], showLine: true, pointRadius: 0, borderColor: "#1E2A5A", borderDash: [5, 4], borderWidth: 1.5 },
-            ],
-          },
-          options: {
-            scales: { x: { min: lo, max: hi, title: { display: true, text: "Giá trị thật (cm)" } }, y: { min: lo, max: hi, title: { display: true, text: "Dự đoán (cm)" } } },
-            plugins: { legend: { position: "bottom" }, tooltip: { callbacks: { label: c => (c.datasetIndex === 0 ? ` ${tip(c.dataIndex)}` : " y = x") } } },
-          },
-        });
-        const rmax = Math.max(...d.residuals.map(Math.abs)) * 1.2;
-        chart(view.querySelector("#resChart"), {
-          type: "scatter",
-          data: {
-            datasets: [
-              { label: "Phần dư", data: d.predicted.map((p, i) => ({ x: p, y: d.residuals[i] })), backgroundColor: color + "CC", borderColor: "#fff", borderWidth: 1, pointRadius: 5, pointHoverRadius: 7 },
-              { label: "0", data: [{ x: lo, y: 0 }, { x: hi, y: 0 }], showLine: true, pointRadius: 0, borderColor: "#1E2A5A", borderDash: [5, 4], borderWidth: 1.5 },
-            ],
-          },
-          options: {
-            scales: { x: { min: lo, max: hi, title: { display: true, text: "Dự đoán (cm)" } }, y: { min: -rmax, max: rmax, title: { display: true, text: "Thật − dự đoán (cm)" } } },
-            plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => (c.datasetIndex === 0 ? ` ${tip(c.dataIndex)} · dư ${num(d.residuals[c.dataIndex], 3)}` : " 0") } } },
-          },
-        });
-      } catch (err) {
-        if (ctx.alive()) view.querySelector("#diagSub").innerHTML = `<span style="color:var(--bad)">${esc(err.message)}</span>`;
-      }
-    };
-
-    view.querySelectorAll("#pathSeg button").forEach(btn => btn.addEventListener("click", () => {
-      view.querySelectorAll("#pathSeg button").forEach(b => b.classList.toggle("active", b === btn));
-      loadPath(btn.dataset.model);
-    }));
-    view.querySelector("#diagModel").addEventListener("change", e => loadDiag(e.target.value));
-
-    loadPath("lasso");
-    loadDiag(report.best_model);
+    load(pcaCard, "retryPca", async () => {
+      const pca = await modelApi("/dataset/pca");
+      if (ctx.alive()) drawPca(pcaCard, pca);
+    });
+    load(cmCard, "retryCm", async () => {
+      const metrics = await metricsReq;
+      if (ctx.alive()) drawMatrix(cmCard, metrics);
+    });
+    load(balanceCard, "retryBalance", async () => {
+      const [summary, metrics] = await Promise.all([modelApi("/dataset/summary"), metricsReq.catch(() => null)]);
+      if (ctx.alive()) drawBalance(balanceCard, summary, metrics);
+    });
   },
 };
