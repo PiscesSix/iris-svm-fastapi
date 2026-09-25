@@ -39,22 +39,21 @@ Triển khai trực tuyến trên **Render**.
 
 Nhóm **"Điểm nổi bật"** trên thanh bên của giao diện:
 
-1. **Đấu trường mô hình** (`#/dau-truong`) — kéo 3 thanh trượt (giới hạn = min/max thật trong dữ liệu) và
-   chọn loài; sau 250 ms không đổi (debounce) web gọi `POST /regression/arena`. Cả 5 mô hình dự đoán
-   `petal_width` cạnh nhau, kèm **giá trị đồng thuận** (trung vị 5 dự đoán), **độ lệch** của từng mô hình,
-   mô hình **lệch nhiều nhất** (viền cam), thời gian chạy đo bằng `time.perf_counter` và badge
-   *Nhanh / Trung bình / Chậm* (≤ 1,5× / ≤ 3× / > 3× so với mô hình nhanh nhất). Lưu cả 5 dự đoán vào lịch sử
-   kèm giá trị thật nếu người dùng đo được.
-2. **Regularization path** (`#/phan-tich`) — hệ số của Ridge / Lasso / ElasticNet theo α (thang log), vạch
-   α tốt nhất do GridSearchCV chọn, bảng hệ số tại α đó và giải thích vì sao Lasso ép hệ số về 0
-   (ngưỡng mềm của chuẩn L1).
-3. **Chẩn đoán mô hình** (`#/phan-tich`) — biểu đồ *Actual vs Predicted* (có đường y = x) và *Residual*
-   trên 30 mẫu test, dropdown chọn 1 trong 5 mô hình.
+- **Phân tích nâng cao** (`#/phan-tich`) — ba biểu đồ, mỗi biểu đồ kèm nhận xét sinh từ số liệu thật:
+  **PCA 2D** (150 mẫu, 4 đặc trưng chuẩn hoá bằng StandardScaler, % phương sai của PC1/PC2 ghi ở nhãn trục,
+  dữ liệu từ `GET /dataset/pca`), **Confusion Matrix** của SVM trên tập test (từ `GET /metrics`) và
+  **phân bố số lượng 3 loài** (từ `/dataset/summary`). Màu cố định: Setosa `#6366F1`, Versicolor `#10B981`,
+  Virginica `#F59E0B`.
 
-Các trang khác: **Tổng quan** (theo ảnh mẫu `docs/ui-reference.png`, mọi số tính từ `Iris.csv` qua
-`/dataset/summary`), **So sánh mô hình** (bảng xếp hạng, biểu đồ R²/sai số/thời gian, *Train lại*,
-*Xuất Excel*), **Phân loại SVM** (trang da1 cũ, giữ nguyên chức năng), **Lịch sử** (lọc ngày/mô hình,
-phân trang, sửa giá trị thật, xuất Excel), **Đăng nhập / Đăng ký**.
+Các trang khác: **Tổng quan** — khối dự đoán SVM (4 thanh trượt + ô nhập số đồng bộ hai chiều, giới hạn =
+min/max thật trong dữ liệu, mặc định 5.8 / 2.7 / 3.7 / 1.2, nút *Dự đoán* gọi `POST /predict`, hiển thị loài,
+ảnh, accuracy tập test, 4 giá trị đầu vào và đặc điểm nhận dạng) và bên dưới là thống kê theo loài theo ảnh mẫu
+`docs/ui-reference.png` (mọi số tính từ `Iris.csv` qua `/dataset/summary`); **So sánh mô hình** (bảng xếp hạng,
+biểu đồ R²/sai số/thời gian, *Train lại*, *Xuất Excel*), **Phân loại SVM** (trang da1 cũ, giữ nguyên chức năng),
+**Lịch sử** (lọc ngày/mô hình, phân trang, sửa giá trị thật, xuất Excel), **Đăng nhập / Đăng ký**.
+
+Các endpoint `POST /regression/arena`, `GET /regression/regularization-path` và `GET /regression/diagnostics`
+vẫn còn trong API (dùng được qua Swagger `/docs`) nhưng giao diện web không còn gọi tới.
 
 ## Chạy trên máy trắng — một dòng lệnh
 
@@ -139,6 +138,7 @@ và trang *So sánh mô hình*. Mô hình tốt nhất được chọn theo **CV
 | GET | `/metrics` | Số liệu đánh giá của SVM |
 | POST | `/predict` | Dự đoán loài hoa từ 4 kích thước (SVM) |
 | GET | `/dataset/summary` | Thống kê theo loài tính từ `Iris.csv` (trang Tổng quan) |
+| GET | `/dataset/pca` | PCA 2D của 150 mẫu đã chuẩn hoá (trang Phân tích nâng cao) |
 | GET | `/regression/metrics` | Bảng so sánh 5 mô hình hồi quy |
 | POST | `/regression/train` | Train lại 5 mô hình — **cần JWT** |
 | POST | `/regression/predict` | Dự đoán `petal_width` bằng 1 mô hình, kèm thời gian chạy |
@@ -211,7 +211,7 @@ nếu không Render sẽ báo `FileNotFoundError` lúc khởi động.
 ```
 iris-fastapi/
 ├── app.py                # MODULE API MÔ HÌNH (+ chế độ gộp cho Render)
-├── regression_api.py     # router /regression/* và /dataset/summary
+├── regression_api.py     # router /regression/*, /dataset/summary và /dataset/pca
 ├── regression.py         # 5 mô hình hồi quy: train, đánh giá, đo thời gian, đấu trường
 ├── dataset.py            # thống kê theo loài cho trang Tổng quan
 ├── train.py              # huấn luyện SVM + sinh metrics.json
