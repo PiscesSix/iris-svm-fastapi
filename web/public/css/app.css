@@ -211,11 +211,7 @@ label.field { display: grid; gap: 6px; font-size: 12.5px; color: var(--muted); f
 .segmented button { border: 0; background: none; padding: 7px 12px; border-radius: 8px; cursor: pointer; color: var(--muted); font-weight: 600; font-size: 13px; }
 .segmented button.active { background: #fff; color: var(--primary); box-shadow: 0 1px 4px rgba(30, 40, 90, .1); }
 
-.slider { display: grid; gap: 6px; }
-.slider-head { display: flex; justify-content: space-between; font-size: 13px; }
-.slider-head b { color: var(--title); }
 input[type=range] { width: 100%; accent-color: var(--primary); }
-.slider-foot { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
 
 /* ------------------------------------------------------------ data display */
 .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; white-space: nowrap; }
@@ -244,24 +240,49 @@ table.data tr.best td:first-child { box-shadow: inset 3px 0 0 var(--primary); }
 .chart-box.tall { height: 340px; }
 .chart-box.short { height: 220px; }
 
-/* arena */
-.arena-layout { grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); }
-.analysis-layout { grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr); }
-.arena-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
-.model-card { border: 1px solid var(--border); border-radius: 14px; padding: 14px; background: #fff; position: relative; display: grid; gap: 6px; }
-.model-card .name { display: flex; align-items: center; gap: 6px; font-weight: 700; color: var(--title); font-size: 13px; }
-.model-card .value { white-space: nowrap; font-size: 22px; font-weight: 700; color: var(--title); font-variant-numeric: tabular-nums; }
-.model-card .value small { font-size: 13px; color: var(--muted); font-weight: 500; }
-.model-card .dev { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.model-card.outlier { border-color: var(--c5); box-shadow: 0 0 0 2px #FCE3CC; }
-.model-card .flag { position: absolute; top: -10px; right: 10px; background: #FFF1E4; color: #9A4B12; border: 1px solid #F7CFA8; border-radius: 999px; font-size: 11px; font-weight: 700; padding: 1px 8px; }
-.consensus { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.stat { background: #FAFAFE; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
-.stat .label { font-size: 12px; color: var(--muted); }
-.stat .value { font-size: 20px; font-weight: 700; color: var(--title); font-variant-numeric: tabular-nums; }
-.highlight-banner { display: flex; gap: 12px; align-items: flex-start; }
-.highlight-banner .icon { color: var(--primary); margin-top: 2px; }
-.highlight-banner p { margin: 2px 0 0; font-size: 13px; }
+/* overview: SVM predictor */
+.section-title { margin: 4px 0 12px; font-size: 17px; font-weight: 700; color: var(--title); }
+.section-title span { font-size: 12.5px; font-weight: 500; color: var(--muted); }
+.predict-layout { grid-template-columns: minmax(0, 1.75fr) minmax(300px, 1fr); align-items: start; }
+.predict-left { display: grid; grid-template-columns: minmax(200px, .85fr) minmax(0, 1.15fr); gap: 22px; align-items: start; }
+.predict-figure { margin: 0; }
+.predict-figure .photo { height: 300px; }
+.predict-label { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: var(--lavender); text-align: center; }
+.predict-label span { display: block; font-size: 12px; color: var(--muted); }
+.predict-label b { display: block; font-size: 18px; color: var(--title); line-height: 1.3; }
+.feature-list { display: grid; gap: 16px; margin: 16px 0 18px; }
+.feature-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 4px; }
+.feature-head label { font-size: 13px; font-weight: 600; color: var(--title); }
+.feature-head label span { display: block; font-size: 11.5px; font-weight: 500; color: var(--muted); }
+.num-input { width: 84px; min-height: 34px; padding: 5px 8px; text-align: right; font-variant-numeric: tabular-nums; flex: none; }
+.range-row { display: grid; grid-template-columns: 30px minmax(0, 1fr) 30px; gap: 8px; align-items: center; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.range-row span:last-child { text-align: right; }
+.btn.block { width: 100%; }
+.predict-hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+.predict-name { display: flex; align-items: center; gap: 8px; font-size: 22px; font-weight: 700; color: var(--title); line-height: 1.25; }
+.predict-name .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.acc { text-align: right; }
+.acc-value { font-size: 22px; font-weight: 700; color: var(--primary); line-height: 1.25; font-variant-numeric: tabular-nums; }
+.result-section h3 { font-size: 14px !important; margin: 16px 0 4px !important; }
+.notice[hidden] { display: none; }
+
+/* advanced analysis: confusion matrix */
+.cm { border-collapse: separate; border-spacing: 4px; width: 100%; table-layout: fixed; }
+.cm th { font-size: 12.5px; font-weight: 600; color: var(--text); padding: 4px; text-align: center; }
+.cm .axis { font-size: 12px; font-weight: 700; color: var(--muted); }
+.cm col.c-axis { width: 28px; }
+.cm col.c-row { width: 104px; }
+.cm .axis-y span { display: inline-block; writing-mode: vertical-rl; transform: rotate(180deg); }
+.cm .row-h { text-align: right; white-space: nowrap; }
+.cm td { height: 78px; border-radius: 10px; text-align: center; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums;
+  background: #F5F6FB; color: var(--muted); }
+.cm td.diag { background: var(--primary); color: #fff; }
+.cm td.miss { background: var(--bad-bg); color: var(--bad); }
+.cm td small { display: block; font-size: 11px; font-weight: 500; opacity: .85; }
+.insight { display: flex; gap: 8px; align-items: flex-start; margin: 12px 0 0; padding: 10px 12px; border-radius: 10px; background: #FAFAFE;
+  border: 1px solid var(--border); font-size: 13px; }
+.insight .icon { color: var(--primary); margin-top: 2px; }
+.insight p { margin: 0; }
 
 /* ------------------------------------------------------------ states */
 .skeleton { position: relative; overflow: hidden; background: #EEF0F7; border-radius: 10px; }
@@ -307,7 +328,7 @@ table.data tr.best td:first-child { box-shadow: inset 3px 0 0 var(--primary); }
 
 /* ------------------------------------------------------------ responsive */
 @media (max-width: 1280px) {
-  .arena-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .predict-layout { grid-template-columns: minmax(0, 1fr); }
   .overview { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "photo parts" "donut donut" "side side"; }
   .overview .area-side { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -323,7 +344,7 @@ table.data tr.best td:first-child { box-shadow: inset 3px 0 0 var(--primary); }
   .nav-item { width: auto; white-space: nowrap; border-left: 0; border-bottom: 3px solid transparent; border-radius: 10px 10px 4px 4px; }
   .nav-item.active { border-bottom-color: var(--primary); }
   .thumb { width: 24px; height: 24px; }
-  .overview, .cols-2, .cols-3, .cols-4, .arena-layout, .analysis-layout { grid-template-columns: minmax(0, 1fr); }
+  .overview, .cols-2, .cols-3, .cols-4 { grid-template-columns: minmax(0, 1fr); }
   .overview { grid-template-areas: "photo" "parts" "donut" "side"; }
   .overview .area-side { grid-template-columns: 1fr; }
   .span-2 { grid-column: auto; }
@@ -333,8 +354,10 @@ table.data tr.best td:first-child { box-shadow: inset 3px 0 0 var(--primary); }
   .topbar, .brand, .brand > div { min-width: 0; max-width: 100%; }
 }
 @media (max-width: 640px) {
-  .arena-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .consensus { grid-template-columns: 1fr; }
+  .predict-left { grid-template-columns: minmax(0, 1fr); }
+  .predict-figure .photo { height: 240px; }
+  .cm col.c-row { width: 84px; }
+  .cm td { height: 60px; font-size: 18px; }
   .donut-wrap { grid-template-columns: 1fr; }
   .form-grid { grid-template-columns: minmax(0, 1fr); }
   .app { padding: 10px 12px 28px; }

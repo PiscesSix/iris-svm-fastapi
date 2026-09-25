@@ -10,8 +10,7 @@ const ROUTES = {
   "so-sanh": { module: "./pages/compare.js", label: "So sánh mô hình", icon: "chart-column", group: "main" },
   "phan-loai": { module: "./pages/classify.js", label: "Phân loại SVM", icon: "scan-eye", group: "main" },
   "lich-su": { module: "./pages/history.js", label: "Lịch sử", icon: "history", group: "main" },
-  "dau-truong": { module: "./pages/arena.js", label: "Đấu trường mô hình", icon: "swords", group: "highlight" },
-  "phan-tich": { module: "./pages/analysis.js", label: "Phân tích nâng cao", icon: "chart-spline", group: "highlight" },
+  "phan-tich": { module: "./pages/analysis.js", label: "Phân tích nâng cao", icon: "chart-scatter", group: "highlight" },
   "dang-nhap": { module: "./pages/login.js", label: "Đăng nhập", icon: "log-in", group: "hidden" },
 };
 const DEFAULT_ROUTE = "tong-quan";
@@ -65,7 +64,7 @@ function navItem(name) {
 function renderSidebar() {
   const species = SPECIES_KEYS.map(key => {
     const info = state.speciesInfo[key];
-    const active = state.species === key && ["tong-quan", "dau-truong"].includes(state.route) ? " active" : "";
+    const active = state.species === key && state.route === "tong-quan" ? " active" : "";
     const thumb = info
       ? `<img class="thumb" src="${esc(modelAsset(info.image_url))}" alt="" title="Ảnh: ${esc(info.source)} (${esc(info.license)})" loading="lazy">`
       : `<span class="thumb"></span>`;
@@ -101,7 +100,7 @@ function setSpecies(key) {
   state.species = key;
   try { localStorage.setItem(SPECIES_KEY, key); } catch (_) { /* storage blocked */ }
   renderPill();
-  if (state.route === "tong-quan" || state.route === "dau-truong") render();
+  if (state.route === "tong-quan") render();
   else location.hash = "#/tong-quan";
 }
 

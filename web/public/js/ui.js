@@ -17,6 +17,8 @@ export const FEATURE_SHORT = {
   species_virginica: "Loài = virginica",
 };
 export const SPECIES_KEYS = ["setosa", "versicolor", "virginica"];
+// One fixed colour per species, shared by every species chart (PCA, confusion matrix, counts).
+export const SPECIES_COLORS = { setosa: "#6366F1", versicolor: "#10B981", virginica: "#F59E0B" };
 
 export const cap = s => (s ? s.charAt(0).toUpperCase() + s.slice(1) : "");
 
@@ -27,11 +29,6 @@ export function esc(value) {
 export function num(value, digits = 2) {
   if (value === null || value === undefined || Number.isNaN(value)) return "—";
   return Number(value).toLocaleString("vi-VN", { minimumFractionDigits: digits, maximumFractionDigits: digits });
-}
-
-export function signed(value, digits = 3) {
-  if (value === null || value === undefined) return "—";
-  return (value > 0 ? "+" : value < 0 ? "−" : "±") + num(Math.abs(value), digits);
 }
 
 /** Format a duration in milliseconds with a sensible unit. */
@@ -45,14 +42,6 @@ export function duration(ms) {
 export function localTime(utcIso) {
   if (!utcIso) return "—";
   return new Date(utcIso).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "medium" });
-}
-
-export function debounce(fn, wait = 250) {
-  let t;
-  return (...args) => {
-    clearTimeout(t);
-    t = setTimeout(() => fn(...args), wait);
-  };
 }
 
 export function speedBadge(speed) {

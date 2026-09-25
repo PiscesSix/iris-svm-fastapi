@@ -113,8 +113,8 @@ export default {
     if (!data.items.length) {
       table.innerHTML = filtered
         ? emptyState("Không có bản ghi khớp bộ lọc", "Thử bỏ bớt điều kiện lọc.")
-        : emptyState("Chưa có dự đoán nào", "Vào Đấu trường mô hình hoặc Phân loại SVM và bấm “Lưu”.",
-          `<a class="btn" href="#/dau-truong">${icon("swords", 16)}Mở đấu trường</a>`);
+        : emptyState("Chưa có dự đoán nào", "Vào Phân loại SVM, dự đoán rồi bấm “Lưu vào lịch sử”.",
+          `<a class="btn" href="#/phan-loai">${icon("scan-eye", 16)}Mở Phân loại SVM</a>`);
       return;
     }
     table.innerHTML = `<div class="table-wrap"><table class="data">
