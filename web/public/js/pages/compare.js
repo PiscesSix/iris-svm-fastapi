@@ -63,8 +63,8 @@ function runsTable(runs) {
 }
 
 export default {
-  title: "So sánh 5 mô hình hồi quy",
-  subtitle: "Dự đoán chiều rộng cánh hoa (petal_width) — GridSearchCV + KFold(5), xếp hạng theo CV R²",
+  title: "So sánh mô hình (Đánh giá 5 mô hình tuyến tính)",
+  subtitle: "Hiệu suất, tốc độ và lịch sử huấn luyện của 5 mô hình tuyến tính — GridSearchCV + KFold(5), xếp hạng theo điểm kiểm định chéo",
   icon: "chart-column",
 
   async render(view, ctx) {
@@ -89,15 +89,15 @@ export default {
     view.innerHTML = `
       <div class="stack">
         <div class="grid cols-4">
-          ${kpi("trophy", "Mô hình tốt nhất (theo CV R²)", esc(best.label), esc(params(best.best_params)))}
-          ${kpi("target", "CV R² của mô hình tốt nhất", `${num(best.cv_r2_mean, 4)}`, `± ${num(best.cv_r2_std, 4)} qua 5 fold`)}
-          ${kpi("gauge", "R² / RMSE trên tập test", `${num(best.r2, 4)} / ${num(best.rmse, 3)}`, `${report.data.test_size} mẫu test, RMSE tính bằng cm`)}
+          ${kpi("trophy", "Mô hình tốt nhất (theo kiểm định chéo)", esc(best.label), esc(params(best.best_params)))}
+          ${kpi("target", "Điểm kiểm định chéo (CV R²)", `${num(best.cv_r2_mean, 4)}`, `± ${num(best.cv_r2_std, 4)} qua 5 fold`)}
+          ${kpi("gauge", "Hiệu suất trên tập test (R² / RMSE)", `${num(best.r2, 4)} / ${num(best.rmse, 3)}`, `${report.data.test_size} mẫu test, RMSE tính bằng cm`)}
           ${kpi("zap", "Dự đoán nhanh nhất", esc(fastest.label), `${duration(fastest.predict_ms_per_sample)} mỗi mẫu`)}
         </div>
 
         <section class="card">
           <div class="card-head">
-            <div><h2>Bảng xếp hạng</h2>
+            <div><h2>Bảng xếp hạng 5 mô hình</h2>
               <p class="sub">Train lúc ${localTime(report.trained_at)}${report.trained_by ? ` bởi ${esc(report.trained_by)}` : ""} ·
                 ${report.data.train_size} mẫu train / ${report.data.test_size} mẫu test · ${esc(report.data.cv)}</p></div>
             <div class="btn-row">
@@ -118,17 +118,17 @@ export default {
 
         <div class="grid cols-2">
           <section class="card">
-            <div class="card-head"><div><h2>Độ chính xác: CV R² và R² test</h2>
+            <div class="card-head"><div><h2>Hiệu suất mô hình: kiểm định chéo và tập test</h2>
               <p class="sub">Thanh = khoảng CV R² ± 1 độ lệch chuẩn; chấm tròn = trung bình CV; chấm vuông = R² test</p></div></div>
             <div class="chart-box"><canvas id="r2Chart" role="img" aria-label="Biểu đồ CV R² và R² test của 5 mô hình"></canvas></div>
           </section>
           <section class="card">
-            <div class="card-head"><div><h2>Sai số trên tập test</h2><p class="sub">MAE và RMSE (cm) — càng thấp càng tốt</p></div></div>
+            <div class="card-head"><div><h2>Độ lệch dự đoán trên tập test</h2><p class="sub">MAE và RMSE (cm) — càng thấp càng tốt</p></div></div>
             <div class="chart-box"><canvas id="errChart" role="img" aria-label="Biểu đồ MAE và RMSE của 5 mô hình"></canvas></div>
           </section>
           <section class="card">
-            <div class="card-head"><div><h2>Thời gian train</h2><p class="sub">Fit cấu hình tốt nhất trên ${report.data.train_size} mẫu (ms)</p></div></div>
-            <div class="chart-box short"><canvas id="trainChart" role="img" aria-label="Biểu đồ thời gian train"></canvas></div>
+            <div class="card-head"><div><h2>Thời gian huấn luyện</h2><p class="sub">Fit cấu hình tốt nhất trên ${report.data.train_size} mẫu (ms)</p></div></div>
+            <div class="chart-box short"><canvas id="trainChart" role="img" aria-label="Biểu đồ thời gian huấn luyện"></canvas></div>
           </section>
           <section class="card">
             <div class="card-head"><div><h2>Thời gian dự đoán</h2><p class="sub">Trung bình mỗi mẫu (µs), lặp 200 lần trên tập test</p></div></div>
@@ -137,7 +137,7 @@ export default {
         </div>
 
         <section class="card">
-          <div class="card-head"><div><h2>Các lần train đã lưu trong CSDL</h2><p class="sub">Bảng <code>training_runs</code> + <code>model_runs</code> của API CSDL</p></div></div>
+          <div class="card-head"><div><h2>Lịch sử huấn luyện đã lưu trong CSDL</h2><p class="sub">Bảng <code>training_runs</code> + <code>model_runs</code> của API CSDL</p></div></div>
           <div id="runs">${skeleton({ lines: 3 })}</div>
         </section>
       </div>`;
