@@ -88,7 +88,7 @@ function renderSidebar() {
     <div class="side-foot">
       ${LINEART}
       <p class="quote">Mỗi loài hoa đều có vẻ đẹp riêng của nó ♥</p>
-      <div class="student">Sinh viên thực hiện<b>La Thị Mỹ Hoà</b>Lớp 24CKDL · Máy học nâng cao</div>
+      <div class="student">Sinh viên thực hiện<b>La Thị Mỹ Hoà</b>Lớp 24CKDL · Học máy nâng cao</div>
     </div>`;
 
   document.querySelectorAll("[data-species]").forEach(btn => {
