@@ -134,7 +134,7 @@ def home():
         return RedirectResponse(settings.get("WEB_URL", "http://127.0.0.1:8080/"))
     index = WEB_DIR / "index.html"
     if index.exists():
-        return FileResponse(index)
+        return FileResponse(index, headers={"Cache-Control": "no-cache"})
     return {"message": "Iris SVM API is running", "docs": "/docs"}
 
 
@@ -217,4 +217,6 @@ if SINGLE_SERVICE:
 
     if WEB_DIR.exists():
         # Mounted last so every API route above keeps priority over static files.
-        app.mount("/", StaticFiles(directory=WEB_DIR, html=True), name="web")
+        from web.static import WebStaticFiles
+
+        app.mount("/", WebStaticFiles(directory=WEB_DIR, html=True), name="web")
