@@ -225,8 +225,21 @@ biến này thì app dùng SQLite và dữ liệu bị xoá mỗi lần deploy/n
 (Nếu tạo bằng **Blueprint**, `render.yaml` đã khai báo sẵn CSDL `iris-svm-db` và nối `DATABASE_URL`.)
 CSDL Free: 1 GB, **hết hạn sau 30 ngày** (Render gửi email báo trước); mỗi workspace chỉ có 1 CSDL Free.
 
-**Xem dữ liệu:** dùng **External Database URL** (tab Connections) với `psql`, DBeaver, pgAdmin hoặc
-VS Code (extension PostgreSQL). Ví dụ lịch sử dự đoán mới nhất:
+**Xem dữ liệu bằng `db_viewer.py`** (chỉ đọc, dùng **External Database URL** ở Render → `iris-svm-db` → Connect →
+External; URL lấy từ `--url`, biến `EXTERNAL_DATABASE_URL` trong `.env`, hoặc hỏi ẩn khi chạy):
+
+```powershell
+.\.venv\Scripts\python.exe db_viewer.py                     # các bảng + số dòng + 10 dự đoán mới nhất
+.\.venv\Scripts\python.exe db_viewer.py history --watch 5   # lịch sử, tự làm mới mỗi 5 giây (Ctrl+C thoát)
+.\.venv\Scripts\python.exe db_viewer.py history --user demo
+.\.venv\Scripts\python.exe db_viewer.py show users          # một bảng
+.\.venv\Scripts\python.exe db_viewer.py query "SELECT model, COUNT(*) FROM predictions GROUP BY model"
+.\.venv\Scripts\python.exe db_viewer.py export              # mọi bảng ra .xlsx
+```
+
+Phiên kết nối đặt `default_transaction_read_only=on` nên INSERT/UPDATE/DELETE bị từ chối. Thời gian hiển thị
+theo giờ Việt Nam (CSDL lưu UTC). Cũng có thể dùng `psql`, DBeaver, pgAdmin hoặc VS Code với cùng URL.
+Ví dụ lịch sử dự đoán mới nhất:
 
 ```sql
 SELECT p.id, u.username, p.created_at, p.model, p.input_json, p.predicted_label, p.predicted_value, p.actual_value
@@ -254,6 +267,7 @@ iris-fastapi/
 ├── settings.py           # đọc .env / biến môi trường
 ├── security.py           # bcrypt + JWT
 ├── seed.py               # train lần đầu + tài khoản demo
+├── db_viewer.py          # xem CSDL Render bằng External Database URL (chỉ đọc)
 ├── db_api/               # MODULE API CSDL
 │   ├── main.py           #   app FastAPI + CORS
 │   ├── auth.py history.py runs.py export.py
