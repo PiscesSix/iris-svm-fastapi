@@ -76,9 +76,10 @@ git clone https://github.com/PiscesSix/iris-svm-fastapi.git && cd iris-svm-fasta
 git clone https://github.com/PiscesSix/iris-svm-fastapi.git; cd iris-svm-fastapi; powershell -ExecutionPolicy Bypass -File .\run.ps1
 ```
 
-Script sẽ: tạo `.venv`, chép `.env.example` → `.env` và **tự sinh `JWT_SECRET`**, cài `requirements.txt`,
-chạy `seed.py` (train 5 mô hình hồi quy nếu chưa có + tạo tài khoản **`demo` / `demo123`** + lưu lần
-train đầu vào CSDL), rồi khởi động 3 module và mở trình duyệt:
+Script sẽ: tạo `.venv`, chép `.env.example` → `.env` và **tự sinh `JWT_SECRET` + `ADMIN_PASSWORD`** (in mật
+khẩu admin ra màn hình), cài `requirements.txt`, chạy `seed.py` (train 5 mô hình hồi quy nếu chưa có + tạo
+tài khoản **`demo` / `demo123`** và **`admin`** + lưu lần train đầu vào CSDL), rồi khởi động 3 module và mở
+trình duyệt. Chạy ở máy dùng SQLite `data/app.db` (không cần Postgres):
 
 | Module | Địa chỉ |
 |--------|---------|
@@ -96,7 +97,9 @@ Dừng cả ba bằng `Ctrl+C`. Các chế độ khác của script (`bash run.s
 | `train` | cài `requirements-dev.txt`, train lại SVM (`train.py`) + 5 mô hình hồi quy (`train_regression.py`), vẽ lại hình |
 | `test` | cài `requirements-dev.txt` và chạy `pytest` |
 
-Cấu hình nằm trong `.env` (mẫu: `.env.example`): `JWT_SECRET`, `DB_PATH`, cổng, `CORS_ORIGINS`…
+Cấu hình nằm trong `.env` (mẫu: `.env.example`): `JWT_SECRET`, `ADMIN_PASSWORD`, `DB_PATH`, cổng, `CORS_ORIGINS`…
+`.env` tạo từ trước khi có trang Dữ liệu SQL sẽ thiếu `ADMIN_PASSWORD`: thêm dòng `ADMIN_PASSWORD=<mật khẩu>`
+rồi chạy lại. Muốn chạy ở máy nhưng ghi thẳng vào CSDL Render thì đặt `DATABASE_URL=<External Database URL>`.
 Không có secret nào được viết cứng trong mã nguồn.
 
 ## Kết quả mô hình
@@ -198,43 +201,113 @@ Test chạy trên CSDL SQLite tạm, không đụng `data/app.db` hay mô hình 
 PostgreSQL: đặt `TEST_DATABASE_URL=postgresql://...` trỏ tới một CSDL **trống** (không bao giờ dùng CSDL thật;
 `DATABASE_URL` trong `.env` bị bỏ qua khi chạy test).
 
-## Triển khai lên Render
+## Triển khai lên Render — hướng dẫn từ đầu
 
-1. Push thư mục này lên một repo GitHub (dịch vụ đang chạy build từ `PiscesSix/iris-svm-fastapi`).
-2. Trên https://render.com → **New +** → **Blueprint** (đọc `render.yaml`) hoặc **Web Service** → chọn repo.
-3. Nếu điền tay:
-   - Runtime: **Python 3**
-   - Build Command: `pip install -r requirements.txt`
-   - Start Command: `uvicorn app:app --host 0.0.0.0 --port $PORT`
-   - Health Check Path: `/health`
-   - Environment: `SERVICE_MODE=single`, `JWT_SECRET=<chuỗi ngẫu nhiên dài>`,
-     `DATABASE_URL=<Internal Database URL của Render Postgres>` (xem mục dưới)
-   - Instance Type: **Free**
-4. Bấm **Create Web Service**, chờ build ~2–4 phút, lấy URL `https://<ten-service>.onrender.com`.
+Phần này dành cho người vừa pull code về và muốn có **bản chạy online của riêng mình**: web + API trên một
+Web Service, dữ liệu (tài khoản, lịch sử dự đoán, các lần train) lưu trong **Render Postgres**. Mọi thứ đều ở
+gói **Free**, không cần thẻ thanh toán.
 
-**Lưu ý gói Free:** service **ngủ sau ~15 phút** không có request; request đầu tiên sau đó mất
-30–60 giây để đánh thức. Ổ đĩa của gói Free **không bền**, nên trên Render phải đặt `DATABASE_URL`: không có
-biến này thì app dùng SQLite và dữ liệu bị xoá mỗi lần deploy/ngủ dậy. Lúc khởi động app tự tạo tài khoản
-`demo` và lần train đầu nếu CSDL còn trống (`seed.py`, không tạo trùng).
+### Bước 0 — Chuẩn bị
 
-### CSDL PostgreSQL trên Render (gói Free)
+1. **Code trên GitHub của bạn.** Render chỉ build từ repo mà tài khoản của bạn truy cập được:
+   - Cách nhanh: mở https://github.com/PiscesSix/iris-svm-fastapi → **Fork**.
+   - Hoặc đẩy bản đã clone lên một repo mới (tạo repo trống `iris-svm-fastapi` trên GitHub trước):
 
-1. Render → **New +** → **Postgres**: Name `iris-svm-db`, Database `iris_svm`, User `iris_svm`,
-   **Region trùng với web service**, Instance Type **Free** → **Create Database**.
-2. Mở CSDL vừa tạo → **Connections** → copy **Internal Database URL**.
-3. Web service → **Environment** → thêm `DATABASE_URL` = URL vừa copy → **Save, rebuild, and deploy**.
-4. Kiểm tra: `GET /db/health` trả `"database": "postgresql/iris_svm"`.
+     ```powershell
+     git clone https://github.com/PiscesSix/iris-svm-fastapi.git
+     cd iris-svm-fastapi
+     git remote set-url origin https://github.com/<tai-khoan-cua-ban>/iris-svm-fastapi.git
+     git push -u origin main
+     ```
+2. **Tài khoản Render**: đăng ký tại https://render.com bằng GitHub (cho phép Render đọc repo ở bước trên).
+3. Mỗi workspace Render chỉ có **1 CSDL Postgres Free**. Nếu đã có một cái, xoá nó hoặc dùng workspace khác.
+4. Hai tệp mô hình `svm_model.pkl` và `regression_models.pkl` **phải có trong repo** (đã commit sẵn; đừng
+   thêm chúng vào `.gitignore`), nếu không app chết lúc khởi động với `FileNotFoundError`.
 
-(Nếu tạo bằng **Blueprint**, `render.yaml` đã khai báo sẵn CSDL `iris-svm-db` và nối `DATABASE_URL`.)
-CSDL Free: 1 GB, **hết hạn sau 30 ngày** (Render gửi email báo trước); mỗi workspace chỉ có 1 CSDL Free.
+### Cách A — Blueprint (khuyến nghị: Render tự tạo CSDL và tự điền biến môi trường)
 
-**Xem dữ liệu trên web — trang "Dữ liệu SQL"** (`#/du-lieu-sql`): các bảng kèm số dòng, dữ liệu từng bảng
-(tự làm mới mỗi 5 giây nếu bật), ô chạy câu SQL chỉ đọc với 4 câu mẫu. Chỉ tài khoản **`admin`** được vào; mật
-khẩu là biến `ADMIN_PASSWORD` (trên Render: service → Environment, do Render tự sinh; cục bộ: trong `.env`).
-Tài khoản `demo` công khai **không** vào được.
+`render.yaml` trong repo đã khai báo đủ: Web Service `iris-svm-fastapi` + Postgres `iris-svm-db` (cả hai Free)
+và 4 biến môi trường. Bạn không phải copy chuỗi kết nối hay mật khẩu nào.
+
+1. Render → **New +** → **Blueprint** → chọn repo của bạn → **Connect**.
+2. **Blueprint Name**: `iris-svm-fastapi`; **Branch**: `main`; Blueprint Path để trống (mặc định `render.yaml`).
+3. Xem danh sách Render sẽ làm, phải có đủ:
+   - Create web service `iris-svm-fastapi` và Create database `iris-svm-db` (Free);
+   - biến `SERVICE_MODE`, `JWT_SECRET`, `ADMIN_PASSWORD`, `DATABASE_URL`.
+
+   Nếu workspace đã có service/CSDL trùng tên, Render hỏi thêm: chọn **Associate existing services** để dùng lại.
+4. Bấm **Deploy Blueprint**. Render tạo CSDL (~1–2 phút) rồi build web (~2–4 phút) cho tới khi service **Live**.
+5. Mở service → lấy URL dạng `https://iris-svm-fastapi-xxxx.onrender.com` (Render thêm hậu tố nếu tên đã có người dùng).
+
+Từ đó, mỗi lần `git push` lên `main`, Render tự deploy lại và áp dụng thay đổi trong `render.yaml`.
+
+### Cách B — Tạo tay (khi không dùng Blueprint)
+
+1. **Tạo CSDL**: Render → **New +** → **Postgres**
+   - Name `iris-svm-db`, Database `iris_svm`, User `iris_svm`, **Region**: chọn một vùng (ví dụ Oregon) và
+     dùng **đúng vùng đó** cho web service ở bước 2.
+   - Mục **Compute** chọn gói **$0 / month (Free)**. Form mặc định chọn gói trả phí, nên phải chọn lại và kiểm
+     tra dòng **Total = $0 / month** trước khi bấm **Create Database**.
+   - Chờ trạng thái **Available** → bấm **Connect** → tab **Internal** → copy **Internal Database URL**.
+2. **Tạo Web Service**: **New +** → **Web Service** → chọn repo, rồi điền:
+
+   | Ô | Giá trị |
+   |---|---|
+   | Runtime | Python 3 |
+   | Region | trùng với CSDL |
+   | Build Command | `pip install -r requirements.txt` |
+   | Start Command | `uvicorn app:app --host 0.0.0.0 --port $PORT` |
+   | Health Check Path | `/health` |
+   | Instance Type | Free |
+
+3. **Environment Variables** (Add Environment Variable) — xem bảng ở mục dưới. Với `JWT_SECRET` và
+   `ADMIN_PASSWORD` bấm **Generate** để Render tự sinh; `DATABASE_URL` dán Internal Database URL ở bước 1.
+4. **Create Web Service**, chờ **Live**.
+
+### Các biến môi trường
+
+| Biến | Bắt buộc | Giá trị trên Render | Ý nghĩa |
+|---|---|---|---|
+| `SERVICE_MODE` | có | `single` | chạy 3 module (API mô hình, API CSDL ở `/db`, web ở `/`) trong một tiến trình |
+| `JWT_SECRET` | có | Generate | khoá ký token đăng nhập. Thiếu → người dùng bị đăng xuất mỗi lần service khởi động lại |
+| `DATABASE_URL` | có | Internal Database URL (Blueprint: tự điền) | có → lưu vào PostgreSQL; **thiếu → dùng SQLite trên ổ đĩa tạm, dữ liệu mất mỗi lần deploy/ngủ dậy** |
+| `ADMIN_PASSWORD` | nên có | Generate | mật khẩu tài khoản `admin`, tài khoản duy nhất vào được trang **Dữ liệu SQL**. Thiếu → trang bị khoá |
+| `SQL_VIEWER_USERS` | không | mặc định `admin` | danh sách tài khoản được vào trang Dữ liệu SQL (phân cách bằng dấu phẩy) |
+| `APP_TZ_OFFSET_HOURS` | không | mặc định `7` | múi giờ cho bộ lọc ngày và thời gian trong file Excel |
+| `DB_POOL_SIZE` | không | mặc định `5` | số kết nối tối đa tới PostgreSQL |
+
+Không có biến nào phải chép vào mã nguồn; chạy ở máy thì các biến này nằm trong `.env` (mẫu: `.env.example`).
+
+### Lần khởi động đầu tiên làm gì
+
+App tự tạo bảng (migration `db_api/migrations/postgres/001_initial.sql`), rồi `seed.py` tạo:
+tài khoản **`demo` / `demo123`** (công khai, để thử), tài khoản **`admin`** (mật khẩu = `ADMIN_PASSWORD`) và lần
+train đầu của 5 mô hình hồi quy. Chạy lại bao nhiêu lần cũng không tạo trùng; đổi `ADMIN_PASSWORD` thì lần khởi
+động sau mật khẩu admin được đặt lại theo giá trị mới.
+
+### Kiểm tra sau khi deploy
+
+| Mở | Kết quả đúng |
+|---|---|
+| `https://<url>/health` | `"status": "healthy"` |
+| `https://<url>/db/health` | `"database": "postgresql/iris_svm"` (nếu thấy `app.db` là **chưa nối CSDL**) |
+| `https://<url>/docs` | Swagger, có nhóm "Mô hình tuyến tính" |
+| `https://<url>/` | giao diện web; đăng nhập `demo` / `demo123` → Phân loại SVM → Dự đoán → **Lưu** |
+| trang **Dữ liệu SQL** | đăng nhập `admin` → thấy dòng vừa lưu ở bảng `predictions` |
+
+Gói Free **ngủ sau ~15 phút** không có request; request đầu tiên sau đó mất 30–60 giây. Trước khi demo nên mở
+trang trước 2–3 phút. Dữ liệu vẫn còn sau khi ngủ dậy vì nằm trong Postgres.
+
+### Xem dữ liệu
+
+**Lấy mật khẩu admin:** Render → service → **Environment** → dòng `ADMIN_PASSWORD` → bấm biểu tượng con mắt.
+
+**Cách 1 — trên web, trang "Dữ liệu SQL"** (`#/du-lieu-sql`, đăng nhập `admin`): các bảng kèm số dòng, dữ liệu
+từng bảng (bật **Tự làm mới mỗi 5 giây** để thấy dòng mới ngay khi có người bấm Lưu), ô chạy câu SQL chỉ đọc
+với 4 câu mẫu. Tài khoản `demo` công khai **không** vào được.
 
 Bảo mật của trang này:
-- Phân quyền theo tài khoản `SQL_VIEWER_USERS` (mặc định `admin`); tên này không đăng ký được từ web,
+- Phân quyền theo `SQL_VIEWER_USERS` (mặc định `admin`); tên này không đăng ký được từ web,
   `seed.py` tạo nó (hoặc đặt lại mật khẩu) theo `ADMIN_PASSWORD`. Không đặt `ADMIN_PASSWORD` = trang bị khoá.
 - Chỉ đọc: PostgreSQL chạy câu lệnh trong `SET TRANSACTION READ ONLY` + prepared statement (đúng một câu, nên
   `SELECT 1; COMMIT; DROP ...` bị từ chối), `statement_timeout` 5 giây; SQLite dùng `PRAGMA query_only`.
@@ -242,8 +315,9 @@ Bảo mật của trang này:
   `password_hash`, mọi chuỗi dạng hash bcrypt trong kết quả đều bị che. Tên bảng chỉ nhận tên có thật.
 - Mọi giá trị được escape trước khi hiển thị (không XSS). Kiểm thử: `tests/test_sql_explorer.py`.
 
-**Xem dữ liệu bằng `db_viewer.py`** (chỉ đọc, dùng **External Database URL** ở Render → `iris-svm-db` → Connect →
-External; URL lấy từ `--url`, biến `EXTERNAL_DATABASE_URL` trong `.env`, hoặc hỏi ẩn khi chạy):
+**Cách 2 — trên máy, `db_viewer.py`** (chỉ đọc). Lấy **External Database URL** ở Render → `iris-svm-db` →
+**Connect** → tab **External** (URL này chứa mật khẩu CSDL: không commit, không đưa lên slide). URL lấy từ `--url`,
+biến `EXTERNAL_DATABASE_URL` trong `.env`, hoặc được hỏi ẩn khi chạy:
 
 ```powershell
 .\.venv\Scripts\python.exe db_viewer.py                     # các bảng + số dòng + 10 dự đoán mới nhất
@@ -254,9 +328,10 @@ External; URL lấy từ `--url`, biến `EXTERNAL_DATABASE_URL` trong `.env`, h
 .\.venv\Scripts\python.exe db_viewer.py export              # mọi bảng ra .xlsx
 ```
 
-Phiên kết nối đặt `default_transaction_read_only=on` nên INSERT/UPDATE/DELETE bị từ chối. Thời gian hiển thị
-theo giờ Việt Nam (CSDL lưu UTC). Cũng có thể dùng `psql`, DBeaver, pgAdmin hoặc VS Code với cùng URL.
-Ví dụ lịch sử dự đoán mới nhất:
+Phiên kết nối là chỉ đọc và mỗi lần chạy đúng một câu lệnh. Thời gian hiển thị theo giờ Việt Nam (CSDL lưu UTC).
+
+**Cách 3 — công cụ có giao diện:** DBeaver / pgAdmin / VS Code (extension PostgreSQL) với cùng External URL,
+bật SSL chế độ `require`. Ví dụ lịch sử dự đoán mới nhất:
 
 ```sql
 SELECT p.id, u.username, p.created_at, p.model, p.input_json, p.predicted_label, p.predicted_value, p.actual_value
@@ -264,8 +339,29 @@ FROM predictions p JOIN users u ON u.id = p.user_id
 ORDER BY p.id DESC LIMIT 20;
 ```
 
-**Bắt buộc:** `svm_model.pkl` và `regression_models.pkl` phải được commit (`.gitignore` không bỏ qua),
-nếu không Render sẽ báo `FileNotFoundError` lúc khởi động.
+### Bảo trì
+
+- **CSDL Free hết hạn sau 30 ngày** (Render gửi email báo trước). Trước hạn, sao lưu bằng
+  `db_viewer.py export`. Sau đó tạo CSDL Free mới và cập nhật `DATABASE_URL` (Cách B), hoặc với Blueprint:
+  xoá CSDL cũ rồi bấm **Manual sync** ở trang Blueprint để Render tạo lại theo `render.yaml`. CSDL mới trống,
+  app tự tạo lại bảng, `demo`, `admin` và lần train đầu.
+- **Đổi mật khẩu admin**: sửa `ADMIN_PASSWORD` ở tab Environment → **Save, rebuild, and deploy**.
+- **Đổi mật khẩu CSDL** (khi URL bị lộ): trang CSDL trên Render → đổi credentials. Sau đó mở `/db/health`
+  để kiểm tra; nếu lỗi kết nối thì cập nhật `DATABASE_URL` (Cách B) hoặc bấm **Manual sync** Blueprint (Cách A).
+- **Giới hạn IP truy cập CSDL từ ngoài**: trang CSDL → **Networking** → Inbound IP Rules (mặc định cho phép mọi IP).
+
+### Lỗi thường gặp
+
+| Hiện tượng | Nguyên nhân / cách sửa |
+|---|---|
+| `/db/health` trả `"database": "app.db"` | thiếu `DATABASE_URL` → thêm biến rồi deploy lại |
+| Log báo `could not translate host name "dpg-...-a"` | dùng Internal URL nhưng CSDL khác region với web service, hoặc dùng Internal URL từ máy mình (từ ngoài Render phải dùng External URL) |
+| Đăng nhập `admin` bị 401 | `ADMIN_PASSWORD` chưa có lúc app khởi động → kiểm tra biến rồi **Manual Deploy → Restart service** |
+| Trang Dữ liệu SQL báo "Chỉ dành cho quản trị viên" | đang đăng nhập `demo` hoặc tài khoản thường → đăng xuất, vào lại bằng `admin` |
+| Không thấy mục "Dữ liệu SQL" ở thanh bên | trình duyệt còn giữ giao diện cũ từ trước commit `b299421` → nhấn **Ctrl + F5** một lần (từ bản đó file giao diện luôn được kiểm tra lại) |
+| Build xanh nhưng app không lên, log `FileNotFoundError: svm_model.pkl` | chưa commit tệp mô hình |
+| Treo ở "Deploying" | Start Command thiếu `--host 0.0.0.0 --port $PORT` |
+| Tạo CSDL báo đã hết lượt Free | workspace đã có 1 CSDL Free → xoá cái cũ hoặc dùng workspace khác |
 
 ## Cấu trúc thư mục
 
