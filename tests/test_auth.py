@@ -1,8 +1,6 @@
 """R3.1: registration, bcrypt hashing, JWT login and protected routes."""
 
-import sqlite3
-
-import settings
+from db_api.db import connect
 
 
 def test_register_returns_token(client):
@@ -16,8 +14,11 @@ def test_register_returns_token(client):
 
 def test_password_is_stored_as_bcrypt_hash(client):
     client.post("/db/auth/register", json={"username": "bob", "password": "builder1"})
-    with sqlite3.connect(settings.db_path()) as conn:
+    conn = connect()
+    try:
         stored = conn.execute("SELECT password_hash FROM users WHERE username = 'bob'").fetchone()[0]
+    finally:
+        conn.close()
     assert stored != "builder1"
     assert stored.startswith("$2b$")
 

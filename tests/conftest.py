@@ -1,4 +1,8 @@
-"""Shared fixtures: the single-service app on a throw-away SQLite database."""
+"""Shared fixtures: the single-service app on a throw-away SQLite database.
+
+Set TEST_DATABASE_URL to run the same tests on an empty PostgreSQL database instead;
+a DATABASE_URL from .env or the shell is ignored so tests never touch real data.
+"""
 
 from __future__ import annotations
 
@@ -15,6 +19,7 @@ sys.path.insert(0, str(ROOT))
 # Must be set before app / settings are imported.
 _TMP = Path(tempfile.mkdtemp(prefix="iris-tests-"))
 os.environ["DB_PATH"] = str(_TMP / "test.db")
+os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL", "")
 os.environ["JWT_SECRET"] = "test-secret-key-that-is-long-enough-for-hs256"
 os.environ["SERVICE_MODE"] = "single"
 

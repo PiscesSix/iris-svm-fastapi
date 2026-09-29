@@ -5,19 +5,18 @@ Run:  python seed.py [--retrain]
 Idempotent: the models are trained only if regression_models.pkl is missing (or
 with --retrain), the demo account is created only if absent, and the first
 training run is copied into model_runs only while that table is empty.
-In single-service mode app.py calls `seed_database()` at startup, so a fresh
-SQLite file on Render gets the demo account back after every deploy.
+In single-service mode app.py calls `seed_database()` at startup, so an empty
+database (a new Render Postgres, or a fresh SQLite file) gets the demo account.
 """
 
 from __future__ import annotations
 
 import argparse
-import sqlite3
 import sys
 
 import regression as reg
 from db_api.auth import create_user
-from db_api.db import connect
+from db_api.db import IntegrityError, connect
 from db_api.runs import TrainingRunIn, store_run
 
 DEMO_USERNAME = "demo"
@@ -38,13 +37,13 @@ def seed_database(report: dict | None = None, log=print) -> None:
     """Create the demo user and store the current evaluation table if the DB has none."""
     conn = connect()
     try:
-        row = conn.execute("SELECT id FROM users WHERE username = ?", (DEMO_USERNAME,)).fetchone()
+        row = conn.execute("SELECT id FROM users WHERE lower(username) = lower(?)", (DEMO_USERNAME,)).fetchone()
         if row is None:
             try:
                 user_id = create_user(conn, DEMO_USERNAME, DEMO_PASSWORD)
                 log(f"[seed] Đã tạo tài khoản demo: {DEMO_USERNAME} / {DEMO_PASSWORD}")
-            except sqlite3.IntegrityError:  # created concurrently by another worker
-                user_id = conn.execute("SELECT id FROM users WHERE username = ?", (DEMO_USERNAME,)).fetchone()[0]
+            except IntegrityError:  # created concurrently by another worker
+                user_id = conn.execute("SELECT id FROM users WHERE lower(username) = lower(?)", (DEMO_USERNAME,)).fetchone()[0]
         else:
             user_id = row[0]
 

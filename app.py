@@ -60,7 +60,7 @@ async def lifespan(app: FastAPI):
 
     regression_api.load()
     if SINGLE_SERVICE:
-        # Render's disk is wiped on every deploy: recreate the demo account and first run.
+        # Create the demo account and first run if the database is empty (idempotent).
         try:
             import seed
 

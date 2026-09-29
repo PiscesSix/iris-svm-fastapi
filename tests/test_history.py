@@ -1,10 +1,9 @@
 """R3.3 / R3.4: prediction history per user and the model_runs table."""
 
-import sqlite3
 from datetime import date, timedelta
 
-import settings
 from conftest import REG_INPUT
+from db_api.db import connect
 
 
 def _arena_items(client):
@@ -79,8 +78,11 @@ def test_model_run_is_stored(client, user):
 
     runs = client.get("/db/model-runs").json()["runs"]
     assert runs[0]["id"] == run["id"]
-    with sqlite3.connect(settings.db_path()) as conn:
+    conn = connect()
+    try:
         n = conn.execute("SELECT COUNT(*) FROM model_runs WHERE run_id = ?", (run["id"],)).fetchone()[0]
+    finally:
+        conn.close()
     assert n == 5
 
 

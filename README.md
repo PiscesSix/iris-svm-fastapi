@@ -24,7 +24,8 @@ Triển khai trực tuyến trên **Render**.
    │   /regression/regularization-path   │   │  /export/*.xlsx (openpyxl)          │
    │   /regression/diagnostics           │   │           │                         │
    │  /dataset/summary                   │   │           ▼                         │
-   │  svm_model.pkl, regression_*.pkl    │   │   SQLite data/app.db                │
+   │  svm_model.pkl, regression_*.pkl    │   │ PostgreSQL (DATABASE_URL, Render)   │
+   │                                     │   │ hoặc SQLite data/app.db (cục bộ)    │
    └─────────────────────────────────────┘   │   (migration: db_api/migrations/)   │
          xác minh JWT bằng JWT_SECRET chung  └─────────────────────────────────────┘
 ```
@@ -165,7 +166,13 @@ và trang *So sánh mô hình*. Mô hình tốt nhất được chọn theo **CV
 
 Bảng CSDL (`db_api/migrations/001_initial.sql`): `users`, `predictions` (user_id, created_at, task, model,
 input_json, predicted_value/label, actual_value, runtime_ms, batch_id), `training_runs`, `model_runs`,
-và `schema_migrations`. Thay đổi schema → thêm tệp `002_*.sql`, không sửa tệp cũ.
+và `schema_migrations`. Thay đổi schema → thêm tệp `002_*.sql`, không sửa tệp cũ (thêm cả bản PostgreSQL
+trong `db_api/migrations/postgres/`).
+
+**Hai backend, cùng một mã:** không đặt `DATABASE_URL` thì dùng SQLite `data/app.db` (chạy cục bộ, pytest);
+đặt `DATABASE_URL=postgresql://...` thì dùng PostgreSQL (Render Postgres). `db_api/db.py` bọc psycopg để các
+router giữ nguyên câu SQL, dùng pool kết nối (`DB_POOL_SIZE`, mặc định 5). Mỗi lần bấm **Lưu** trên web là một
+`INSERT ... COMMIT` ngay, nên dữ liệu thấy được trong SQL tức thì.
 
 File Excel: header in đậm nền tím, cột tự giãn, mỗi loại dữ liệu một sheet, tên file có dấu thời gian
 (`lich_su_du_doan_YYYYMMDD_HHMMSS.xlsx`, `so_sanh_mo_hinh_YYYYMMDD_HHMMSS.xlsx`).
@@ -184,7 +191,9 @@ bash run.sh test          # hoặc: .venv/Scripts/python -m pytest
 
 `tests/` kiểm tra đăng ký/đăng nhập (bcrypt, JWT, 401/409/422), dự đoán SVM (contract cũ không đổi) và
 hồi quy, đấu trường, badge tốc độ, lưu lịch sử + cô lập theo user, bảng `model_runs`, và 2 file Excel.
-Test chạy trên CSDL SQLite tạm, không đụng `data/app.db` hay mô hình đã commit.
+Test chạy trên CSDL SQLite tạm, không đụng `data/app.db` hay mô hình đã commit. Chạy cùng bộ test trên
+PostgreSQL: đặt `TEST_DATABASE_URL=postgresql://...` trỏ tới một CSDL **trống** (không bao giờ dùng CSDL thật;
+`DATABASE_URL` trong `.env` bị bỏ qua khi chạy test).
 
 ## Triển khai lên Render
 
@@ -195,13 +204,35 @@ Test chạy trên CSDL SQLite tạm, không đụng `data/app.db` hay mô hình 
    - Build Command: `pip install -r requirements.txt`
    - Start Command: `uvicorn app:app --host 0.0.0.0 --port $PORT`
    - Health Check Path: `/health`
-   - Environment: `SERVICE_MODE=single`, `JWT_SECRET=<chuỗi ngẫu nhiên dài>`
+   - Environment: `SERVICE_MODE=single`, `JWT_SECRET=<chuỗi ngẫu nhiên dài>`,
+     `DATABASE_URL=<Internal Database URL của Render Postgres>` (xem mục dưới)
    - Instance Type: **Free**
 4. Bấm **Create Web Service**, chờ build ~2–4 phút, lấy URL `https://<ten-service>.onrender.com`.
 
 **Lưu ý gói Free:** service **ngủ sau ~15 phút** không có request; request đầu tiên sau đó mất
-30–60 giây để đánh thức. Ổ đĩa của gói Free **không bền**: CSDL SQLite bị xoá mỗi lần deploy/khởi động lại;
-lúc khởi động app tự tạo lại tài khoản `demo` và lần train đầu (`seed.py`).
+30–60 giây để đánh thức. Ổ đĩa của gói Free **không bền**, nên trên Render phải đặt `DATABASE_URL`: không có
+biến này thì app dùng SQLite và dữ liệu bị xoá mỗi lần deploy/ngủ dậy. Lúc khởi động app tự tạo tài khoản
+`demo` và lần train đầu nếu CSDL còn trống (`seed.py`, không tạo trùng).
+
+### CSDL PostgreSQL trên Render (gói Free)
+
+1. Render → **New +** → **Postgres**: Name `iris-svm-db`, Database `iris_svm`, User `iris_svm`,
+   **Region trùng với web service**, Instance Type **Free** → **Create Database**.
+2. Mở CSDL vừa tạo → **Connections** → copy **Internal Database URL**.
+3. Web service → **Environment** → thêm `DATABASE_URL` = URL vừa copy → **Save, rebuild, and deploy**.
+4. Kiểm tra: `GET /db/health` trả `"database": "postgresql/iris_svm"`.
+
+(Nếu tạo bằng **Blueprint**, `render.yaml` đã khai báo sẵn CSDL `iris-svm-db` và nối `DATABASE_URL`.)
+CSDL Free: 1 GB, **hết hạn sau 30 ngày** (Render gửi email báo trước); mỗi workspace chỉ có 1 CSDL Free.
+
+**Xem dữ liệu:** dùng **External Database URL** (tab Connections) với `psql`, DBeaver, pgAdmin hoặc
+VS Code (extension PostgreSQL). Ví dụ lịch sử dự đoán mới nhất:
+
+```sql
+SELECT p.id, u.username, p.created_at, p.model, p.input_json, p.predicted_label, p.predicted_value, p.actual_value
+FROM predictions p JOIN users u ON u.id = p.user_id
+ORDER BY p.id DESC LIMIT 20;
+```
 
 **Bắt buộc:** `svm_model.pkl` và `regression_models.pkl` phải được commit (`.gitignore` không bỏ qua),
 nếu không Render sẽ báo `FileNotFoundError` lúc khởi động.
@@ -226,8 +257,8 @@ iris-fastapi/
 ├── db_api/               # MODULE API CSDL
 │   ├── main.py           #   app FastAPI + CORS
 │   ├── auth.py history.py runs.py export.py
-│   ├── db.py             #   kết nối SQLite + chạy migration
-│   └── migrations/       #   001_initial.sql, ...
+│   ├── db.py             #   kết nối SQLite / PostgreSQL + chạy migration
+│   └── migrations/       #   001_initial.sql, ... (+ postgres/ cho PostgreSQL)
 ├── web/                  # MODULE WEB
 │   ├── server.py         #   server tĩnh + /config.js (địa chỉ 2 API)
 │   └── public/           #   index.html, css/, js/, vendor/ (Chart.js, giấy phép), fonts/

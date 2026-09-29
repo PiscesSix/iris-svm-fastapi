@@ -53,6 +53,11 @@ JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_MINUTES = int(get("JWT_EXPIRE_MINUTES", "720"))
 
 
+def database_url() -> str | None:
+    """PostgreSQL connection string (Render Postgres). Empty or unset means SQLite at DB_PATH."""
+    return get("DATABASE_URL") or None
+
+
 def db_path() -> Path:
     """SQLite file of the database API (read at call time so tests can override it).
 

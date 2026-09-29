@@ -10,3 +10,6 @@ joblib==1.6.0
 bcrypt==5.0.0
 PyJWT==2.15.0
 openpyxl==3.1.5
+# PostgreSQL (Render Postgres) khi đặt DATABASE_URL; không đặt thì dùng SQLite.
+psycopg[binary]==3.3.6
+psycopg-pool==3.3.3

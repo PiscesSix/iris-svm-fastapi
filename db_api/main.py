@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import settings
 from db_api import auth, export, history, runs
-from db_api.db import get_conn
+from db_api.db import describe, get_conn
 
 app = FastAPI(
     title="Iris Database API",
@@ -34,7 +34,7 @@ app.add_middleware(
 @app.get("/health", tags=["Hệ thống"])
 def health(conn=Depends(get_conn)):
     versions = [r[0] for r in conn.execute("SELECT version FROM schema_migrations ORDER BY version")]
-    return {"status": "healthy", "database": settings.db_path().name, "migrations": versions}
+    return {"status": "healthy", "database": describe(), "migrations": versions}
 
 
 app.include_router(auth.router)

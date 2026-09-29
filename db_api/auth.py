@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import sqlite3
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
 
 import security
-from db_api.db import get_conn, utc_now
+from db_api.db import IntegrityError, get_conn, utc_now
 
 router = APIRouter(prefix="/auth", tags=["Tài khoản"])
 
@@ -33,7 +31,7 @@ def _token_response(user_id: int, username: str) -> dict:
 
 
 def create_user(conn, username: str, password: str) -> int:
-    """Insert a user with a bcrypt hash; raises sqlite3.IntegrityError if the name is taken."""
+    """Insert a user with a bcrypt hash; raises IntegrityError if the name is taken."""
     cur = conn.execute(
         "INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)",
         (username, security.hash_password(password), utc_now()),
@@ -47,7 +45,7 @@ def register(body: Credentials, conn=Depends(get_conn)):
     """Create an account (password hashed with bcrypt) and log it in."""
     try:
         user_id = create_user(conn, body.username, body.password)
-    except sqlite3.IntegrityError:
+    except IntegrityError:
         raise HTTPException(409, "Tên đăng nhập đã tồn tại")
     return _token_response(user_id, body.username)
 
@@ -55,7 +53,7 @@ def register(body: Credentials, conn=Depends(get_conn)):
 @router.post("/login")
 def login(body: Credentials, conn=Depends(get_conn)):
     """Exchange username + password for a JWT."""
-    user = conn.execute("SELECT * FROM users WHERE username = ?", (body.username,)).fetchone()
+    user = conn.execute("SELECT * FROM users WHERE lower(username) = lower(?)", (body.username,)).fetchone()
     if user is None or not security.verify_password(body.password, user["password_hash"]):
         raise HTTPException(401, "Sai tên đăng nhập hoặc mật khẩu")
     return _token_response(user["id"], user["username"])
