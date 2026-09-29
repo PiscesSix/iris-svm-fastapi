@@ -163,6 +163,9 @@ và trang *So sánh mô hình*. Mô hình tốt nhất được chọn theo **CV
 | GET | `/model-runs?limit=` | Các lần train gần nhất |
 | GET | `/export/predictions.xlsx?model=&date_from=&date_to=` | Xuất lịch sử ra Excel — cần JWT |
 | GET | `/export/model-runs.xlsx?run_id=` | Xuất bảng so sánh mô hình ra Excel — cần JWT |
+| GET | `/sql/tables` | Các bảng + số dòng — **chỉ tài khoản admin** |
+| GET | `/sql/tables/{name}?limit=&offset=` | Dữ liệu một bảng (username thay cho user_id, không có password_hash) — admin |
+| POST | `/sql/query` | Chạy 1 câu SELECT/WITH chỉ đọc, tối đa 500 dòng, 5 giây — admin |
 
 Bảng CSDL (`db_api/migrations/001_initial.sql`): `users`, `predictions` (user_id, created_at, task, model,
 input_json, predicted_value/label, actual_value, runtime_ms, batch_id), `training_runs`, `model_runs`,
@@ -224,6 +227,20 @@ biến này thì app dùng SQLite và dữ liệu bị xoá mỗi lần deploy/n
 
 (Nếu tạo bằng **Blueprint**, `render.yaml` đã khai báo sẵn CSDL `iris-svm-db` và nối `DATABASE_URL`.)
 CSDL Free: 1 GB, **hết hạn sau 30 ngày** (Render gửi email báo trước); mỗi workspace chỉ có 1 CSDL Free.
+
+**Xem dữ liệu trên web — trang "Dữ liệu SQL"** (`#/du-lieu-sql`): các bảng kèm số dòng, dữ liệu từng bảng
+(tự làm mới mỗi 5 giây nếu bật), ô chạy câu SQL chỉ đọc với 4 câu mẫu. Chỉ tài khoản **`admin`** được vào; mật
+khẩu là biến `ADMIN_PASSWORD` (trên Render: service → Environment, do Render tự sinh; cục bộ: trong `.env`).
+Tài khoản `demo` công khai **không** vào được.
+
+Bảo mật của trang này:
+- Phân quyền theo tài khoản `SQL_VIEWER_USERS` (mặc định `admin`); tên này không đăng ký được từ web,
+  `seed.py` tạo nó (hoặc đặt lại mật khẩu) theo `ADMIN_PASSWORD`. Không đặt `ADMIN_PASSWORD` = trang bị khoá.
+- Chỉ đọc: PostgreSQL chạy câu lệnh trong `SET TRANSACTION READ ONLY` + prepared statement (đúng một câu, nên
+  `SELECT 1; COMMIT; DROP ...` bị từ chối), `statement_timeout` 5 giây; SQLite dùng `PRAGMA query_only`.
+- Bảng hiển thị `username` thay cho `user_id` và bỏ cột `password_hash`; câu SQL tự gõ không được nhắc tới
+  `password_hash`, mọi chuỗi dạng hash bcrypt trong kết quả đều bị che. Tên bảng chỉ nhận tên có thật.
+- Mọi giá trị được escape trước khi hiển thị (không XSS). Kiểm thử: `tests/test_sql_explorer.py`.
 
 **Xem dữ liệu bằng `db_viewer.py`** (chỉ đọc, dùng **External Database URL** ở Render → `iris-svm-db` → Connect →
 External; URL lấy từ `--url`, biến `EXTERNAL_DATABASE_URL` trong `.env`, hoặc hỏi ẩn khi chạy):

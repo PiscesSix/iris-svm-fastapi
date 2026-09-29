@@ -15,8 +15,11 @@ import argparse
 import sys
 
 import regression as reg
+import security
+import settings
 from db_api.auth import create_user
 from db_api.db import IntegrityError, connect
+from db_api.explorer import viewer_usernames
 from db_api.runs import TrainingRunIn, store_run
 
 DEMO_USERNAME = "demo"
@@ -33,10 +36,32 @@ def ensure_models(retrain: bool = False, log=print) -> dict:
     return reg.load()[1]
 
 
+def ensure_admins(conn, log=print) -> None:
+    """Create the SQL-page accounts (SQL_VIEWER_USERS) with ADMIN_PASSWORD, or reset their
+    password to it; without ADMIN_PASSWORD no such account exists and the page stays closed."""
+    password = settings.get("ADMIN_PASSWORD")
+    if not password:
+        return
+    for name in sorted(viewer_usernames()):
+        row = conn.execute("SELECT id, password_hash FROM users WHERE lower(username) = lower(?)", (name,)).fetchone()
+        if row is None:
+            try:
+                create_user(conn, name, password)
+                log(f"[seed] Đã tạo tài khoản quản trị: {name} (mật khẩu = ADMIN_PASSWORD)")
+            except IntegrityError:  # created concurrently by another worker
+                pass
+        elif not security.verify_password(password, row["password_hash"]):
+            conn.execute("UPDATE users SET password_hash = ? WHERE id = ?",
+                         (security.hash_password(password), row["id"]))
+            conn.commit()
+            log(f"[seed] Đã cập nhật mật khẩu tài khoản quản trị {name} theo ADMIN_PASSWORD")
+
+
 def seed_database(report: dict | None = None, log=print) -> None:
-    """Create the demo user and store the current evaluation table if the DB has none."""
+    """Create the demo and admin users and store the current evaluation table if the DB has none."""
     conn = connect()
     try:
+        ensure_admins(conn, log)
         row = conn.execute("SELECT id FROM users WHERE lower(username) = lower(?)", (DEMO_USERNAME,)).fetchone()
         if row is None:
             try:

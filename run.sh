@@ -47,9 +47,11 @@ fi
 
 # --- 3. Configuration: .env with a generated JWT secret -------------------------
 if [ ! -f .env ]; then
-  say "Tạo .env từ .env.example (sinh JWT_SECRET ngẫu nhiên)"
+  say "Tạo .env từ .env.example (sinh JWT_SECRET và ADMIN_PASSWORD ngẫu nhiên)"
   SECRET="$("$VPY" -c 'import secrets; print(secrets.token_urlsafe(48))')"
-  sed "s|^JWT_SECRET=.*|JWT_SECRET=$SECRET|" .env.example > .env
+  ADMIN_PW="$("$VPY" -c 'import secrets; print(secrets.token_urlsafe(12))')"
+  sed -e "s|^JWT_SECRET=.*|JWT_SECRET=$SECRET|" -e "s|^ADMIN_PASSWORD=.*|ADMIN_PASSWORD=$ADMIN_PW|" .env.example > .env
+  say "Tài khoản trang Dữ liệu SQL: admin / $ADMIN_PW (lưu trong .env)"
 fi
 set -a
 # shellcheck disable=SC1091

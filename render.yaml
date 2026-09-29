@@ -13,6 +13,10 @@ services:
       # Signing key for the login tokens, generated once by Render; never committed.
       - key: JWT_SECRET
         generateValue: true
+      # Password of the "admin" account, the only one allowed on the SQL page
+      # (Render generates it; read it in the service's Environment tab).
+      - key: ADMIN_PASSWORD
+        generateValue: true
       # Prediction history, users and training runs live in the Render Postgres below.
       - key: DATABASE_URL
         fromDatabase:

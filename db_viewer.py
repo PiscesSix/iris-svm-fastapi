@@ -184,7 +184,12 @@ def cmd_show(conn, args) -> None:
 
 def cmd_query(conn, args) -> None:
     try:
-        run_and_print(conn, args.sql)
+        # prepare=True: exactly one statement, so "SET ...; DELETE ..." cannot slip through.
+        cur = conn.execute(args.sql, prepare=True)
+        if cur.description is None:
+            print("(câu lệnh không trả về dữ liệu)")
+            return
+        print_table([c.name for c in cur.description], cur.fetchall())
     except psycopg.errors.ReadOnlySqlTransaction:
         sys.exit("Công cụ này chỉ đọc: không chạy được INSERT/UPDATE/DELETE/DDL.")
     except psycopg.Error as exc:

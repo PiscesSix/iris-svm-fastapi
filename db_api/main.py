@@ -10,12 +10,13 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import settings
-from db_api import auth, export, history, runs
+from db_api import auth, explorer, export, history, runs
 from db_api.db import describe, get_conn
 
 app = FastAPI(
     title="Iris Database API",
-    description="Người dùng (bcrypt + JWT), lịch sử dự đoán, kết quả đánh giá các lần train và xuất Excel.",
+    description="Người dùng (bcrypt + JWT), lịch sử dự đoán, kết quả đánh giá các lần train, xuất Excel "
+                "và xem dữ liệu SQL (chỉ đọc).",
     version="1.0.0",
 )
 
@@ -41,3 +42,4 @@ app.include_router(auth.router)
 app.include_router(history.router)
 app.include_router(runs.router)
 app.include_router(export.router)
+app.include_router(explorer.router)

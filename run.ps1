@@ -43,10 +43,13 @@ if (-not (Test-Path $vpy)) { Die 'Moi truong ao hong. Xoa thu muc .venv roi chay
 
 # --- 3. Configuration: .env with a generated JWT secret -------------------------
 if (-not (Test-Path '.env')) {
-    Say 'Tao .env tu .env.example (sinh JWT_SECRET ngau nhien)'
+    Say 'Tao .env tu .env.example (sinh JWT_SECRET va ADMIN_PASSWORD ngau nhien)'
     $secret = & $vpy -c "import secrets; print(secrets.token_urlsafe(48))"
-    (Get-Content '.env.example' -Encoding UTF8) -replace '^JWT_SECRET=.*', "JWT_SECRET=$secret" |
+    $adminPw = & $vpy -c "import secrets; print(secrets.token_urlsafe(12))"
+    (Get-Content '.env.example' -Encoding UTF8) -replace '^JWT_SECRET=.*', "JWT_SECRET=$secret" `
+        -replace '^ADMIN_PASSWORD=.*', "ADMIN_PASSWORD=$adminPw" |
         Set-Content '.env' -Encoding UTF8
+    Say "Tai khoan trang Du lieu SQL: admin / $adminPw (luu trong .env)"
 }
 foreach ($line in Get-Content '.env' -Encoding UTF8) {
     if ($line -match '^\s*([A-Za-z_][A-Za-z0-9_]*)=(.*)$') { Set-Item -Path "Env:$($Matches[1])" -Value $Matches[2].Trim() }

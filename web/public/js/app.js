@@ -10,6 +10,7 @@ const ROUTES = {
   "so-sanh": { module: "./pages/compare.js", label: "So sánh mô hình", icon: "chart-column", group: "main" },
   "phan-loai": { module: "./pages/classify.js", label: "Phân loại SVM", icon: "scan-eye", group: "main" },
   "lich-su": { module: "./pages/history.js", label: "Lịch sử", icon: "history", group: "main" },
+  "du-lieu-sql": { module: "./pages/sql.js", label: "Dữ liệu SQL", icon: "database", group: "main" },
   "phan-tich": { module: "./pages/analysis.js", label: "Phân tích nâng cao", icon: "chart-scatter", group: "highlight" },
   "dang-nhap": { module: "./pages/login.js", label: "Đăng nhập", icon: "log-in", group: "hidden" },
 };
