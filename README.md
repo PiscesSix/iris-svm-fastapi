@@ -1,6 +1,6 @@
-# iris-fastapi — Phân tích hoa Iris: SVM phân loại + so sánh 5 mô hình hồi quy
+# iris-fastapi — Phân tích hoa Iris: SVM phân loại + so sánh 5 mô hình tuyến tính
 
-Hệ thống gồm **3 module**: giao diện web, API mô hình (SVM phân loại loài + 5 mô hình hồi quy
+Hệ thống gồm **3 module**: giao diện web, API mô hình (SVM phân loại loài + 5 mô hình tuyến tính
 dự đoán `petal_width`) và API CSDL (tài khoản, lịch sử dự đoán, kết quả đánh giá, xuất Excel).
 Triển khai trực tuyến trên **Render**.
 
@@ -18,7 +18,7 @@ Triển khai trực tuyến trên **Render**.
    ┌─────────────────────────────────────┐   ┌─────────────────────────────────────┐
    │ 2. API MÔ HÌNH  (app.py, cổng 8000) │   │ 3. API CSDL  (db_api/, cổng 8001)   │
    │  SVM: /predict /species /metrics    │   │  /auth/register /auth/login  (bcrypt│
-   │  Hồi quy: /regression/train (JWT)   │   │   + JWT)                            │
+   │  Tuyến tính: /regression/train (JWT)│   │   + JWT)                            │
    │   /regression/metrics  /predict     │   │  /predictions  (lịch sử theo user)  │
    │   /regression/arena                 │   │  /model-runs   (bảng đánh giá)      │
    │   /regression/regularization-path   │   │  /export/*.xlsx (openpyxl)          │
@@ -77,7 +77,7 @@ git clone https://github.com/PiscesSix/iris-svm-fastapi.git; cd iris-svm-fastapi
 ```
 
 Script sẽ: tạo `.venv`, chép `.env.example` → `.env` và **tự sinh `JWT_SECRET` + `ADMIN_PASSWORD`** (in mật
-khẩu admin ra màn hình), cài `requirements.txt`, chạy `seed.py` (train 5 mô hình hồi quy nếu chưa có + tạo
+khẩu admin ra màn hình), cài `requirements.txt`, chạy `seed.py` (train 5 mô hình tuyến tính nếu chưa có + tạo
 tài khoản **`demo` / `demo123`** và **`admin`** + lưu lần train đầu vào CSDL), rồi khởi động 3 module và mở
 trình duyệt. Chạy ở máy dùng SQLite `data/app.db` (không cần Postgres):
 
@@ -94,7 +94,7 @@ Dừng cả ba bằng `Ctrl+C`. Các chế độ khác của script (`bash run.s
 | *(không có)* | 3 module trên 3 cổng |
 | `single` | cả 3 module trong một tiến trình ở cổng 8000 (giống Render) |
 | `seed` | chỉ chạy `seed.py` |
-| `train` | cài `requirements-dev.txt`, train lại SVM (`train.py`) + 5 mô hình hồi quy (`train_regression.py`), vẽ lại hình |
+| `train` | cài `requirements-dev.txt`, train lại SVM (`train.py`) + 5 mô hình tuyến tính (`train_regression.py`), vẽ lại hình |
 | `test` | cài `requirements-dev.txt` và chạy `pytest` |
 
 Cấu hình nằm trong `.env` (mẫu: `.env.example`): `JWT_SECRET`, `ADMIN_PASSWORD`, `DB_PATH`, cổng, `CORS_ORIGINS`…
@@ -114,7 +114,7 @@ Không có secret nào được viết cứng trong mã nguồn.
 | Macro F1 | 93.33% |
 | Vector hỗ trợ | 56 / 120 mẫu huấn luyện |
 
-**5 mô hình hồi quy** — target `petal_width`, đặc trưng `sepal_length, sepal_width, petal_length` +
+**5 mô hình tuyến tính** — target `petal_width`, đặc trưng `sepal_length, sepal_width, petal_length` +
 one-hot `species` (setosa làm mốc). Mỗi mô hình là `Pipeline` có `StandardScaler`, chia train/test 80/20
 cố định (`random_state=42`), tinh chỉnh bằng `GridSearchCV` + `KFold(5)`:
 
@@ -143,7 +143,7 @@ và trang *So sánh mô hình*. Mô hình tốt nhất được chọn theo **CV
 | POST | `/predict` | Dự đoán loài hoa từ 4 kích thước (SVM) |
 | GET | `/dataset/summary` | Thống kê theo loài tính từ `Iris.csv` (trang Tổng quan) |
 | GET | `/dataset/pca` | PCA 2D của 150 mẫu đã chuẩn hoá (trang Phân tích nâng cao) |
-| GET | `/regression/metrics` | Bảng so sánh 5 mô hình hồi quy |
+| GET | `/regression/metrics` | Bảng so sánh 5 mô hình tuyến tính |
 | POST | `/regression/train` | Train lại 5 mô hình — **cần JWT** |
 | POST | `/regression/predict` | Dự đoán `petal_width` bằng 1 mô hình, kèm thời gian chạy |
 | POST | `/regression/arena` | Cả 5 mô hình + giá trị đồng thuận + mô hình lệch nhất |
@@ -195,8 +195,8 @@ curl -X POST "https://iris-svm-fastapi-uvo0.onrender.com/predict" \
 bash run.sh test          # hoặc: .venv/Scripts/python -m pytest
 ```
 
-`tests/` kiểm tra đăng ký/đăng nhập (bcrypt, JWT, 401/409/422), dự đoán SVM (contract cũ không đổi) và
-hồi quy, đấu trường, badge tốc độ, lưu lịch sử + cô lập theo user, bảng `model_runs`, và 2 file Excel.
+`tests/` kiểm tra đăng ký/đăng nhập (bcrypt, JWT, 401/409/422), dự đoán SVM (contract cũ không đổi) và mô hình
+tuyến tính, đấu trường, badge tốc độ, lưu lịch sử + cô lập theo user, bảng `model_runs`, và 2 file Excel.
 Test chạy trên CSDL SQLite tạm, không đụng `data/app.db` hay mô hình đã commit. Chạy cùng bộ test trên
 PostgreSQL: đặt `TEST_DATABASE_URL=postgresql://...` trỏ tới một CSDL **trống** (không bao giờ dùng CSDL thật;
 `DATABASE_URL` trong `.env` bị bỏ qua khi chạy test).
@@ -209,7 +209,7 @@ gói **Free**, không cần thẻ thanh toán.
 
 ### Bước 0 — Chuẩn bị
 
-1. **Code trên GitHub của bạn.** Render chỉ build từ repo mà tài khoản của bạn truy cập được:
+1. **Code trên GitHub:** Render chỉ build từ repo mà tài khoản của bạn truy cập được:
    - Cách nhanh: mở https://github.com/PiscesSix/iris-svm-fastapi → **Fork**.
    - Hoặc đẩy bản đã clone lên một repo mới (tạo repo trống `iris-svm-fastapi` trên GitHub trước):
 
@@ -282,7 +282,7 @@ Không có biến nào phải chép vào mã nguồn; chạy ở máy thì các 
 
 App tự tạo bảng (migration `db_api/migrations/postgres/001_initial.sql`), rồi `seed.py` tạo:
 tài khoản **`demo` / `demo123`** (công khai, để thử), tài khoản **`admin`** (mật khẩu = `ADMIN_PASSWORD`) và lần
-train đầu của 5 mô hình hồi quy. Chạy lại bao nhiêu lần cũng không tạo trùng; đổi `ADMIN_PASSWORD` thì lần khởi
+train đầu của 5 mô hình tuyến tính. Chạy lại bao nhiêu lần cũng không tạo trùng; đổi `ADMIN_PASSWORD` thì lần khởi
 động sau mật khẩu admin được đặt lại theo giá trị mới.
 
 ### Kiểm tra sau khi deploy
@@ -369,13 +369,13 @@ ORDER BY p.id DESC LIMIT 20;
 iris-fastapi/
 ├── app.py                # MODULE API MÔ HÌNH (+ chế độ gộp cho Render)
 ├── regression_api.py     # router /regression/*, /dataset/summary và /dataset/pca
-├── regression.py         # 5 mô hình hồi quy: train, đánh giá, đo thời gian, đấu trường
+├── regression.py         # 5 mô hình tuyến tính: train, đánh giá, đo thời gian
 ├── dataset.py            # thống kê theo loài cho trang Tổng quan
 ├── train.py              # huấn luyện SVM + sinh metrics.json
-├── train_regression.py   # huấn luyện 5 mô hình hồi quy
+├── train_regression.py   # huấn luyện 5 mô hình tuyến tính
 ├── data_loader.py        # nạp dữ liệu Kaggle (kagglehub), fallback sklearn
 ├── figures.py            # sinh 8 hình cho báo cáo
-├── figures_regression.py # sinh 3 hình hồi quy cho báo cáo (từ regression_metrics.json)
+├── figures_regression.py # sinh 3 hình tuyến tính cho báo cáo (từ regression_metrics.json)
 ├── species.py            # thông tin 3 loài + nguồn ảnh
 ├── settings.py           # đọc .env / biến môi trường
 ├── security.py           # bcrypt + JWT
@@ -391,7 +391,7 @@ iris-fastapi/
 │   └── public/           #   index.html, css/, js/, vendor/ (Chart.js, giấy phép), fonts/
 ├── tests/                # pytest
 ├── svm_model.pkl  metrics.json                   # SVM (PHẢI commit)
-├── regression_models.pkl  regression_metrics.json # hồi quy (PHẢI commit)
+├── regression_models.pkl  regression_metrics.json # mô hình tuyến tính (PHẢI commit)
 ├── requirements.txt  requirements-dev.txt  pytest.ini
 ├── render.yaml  Procfile  .env.example
 ├── data/Iris.csv         # dữ liệu Kaggle uciml/iris (app.db của SQLite cũng nằm đây, không commit)
